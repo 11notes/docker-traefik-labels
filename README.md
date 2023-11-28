@@ -43,31 +43,6 @@ docker run --name demo \
 | `LABELS_INTERVAL` | in what interval container information is pulled | 60 |
 | `LABELS_TIMEOUT` | how many seconds after an interval the keys should stay till they expire | 15 |
 
-## Example
-```mermaid
-flowchart TB
-    
-    subgraph Edge
-        A[WAN]:::WAN -->|:8443| B(keepalived VIP):::KEEPALIVED
-    end
-    
-    subgraph Domain_B
-    B -->|:8443| C(Traefik):::TRAEFIK
-    C -->|:6379| E(Redis):::REDIS
-    end
-    subgraph Domain_A
-    B -->|:8443| D(Traefik):::TRAEFIK
-    D -->|:6379| F(Redis):::REDIS
-    end
-
-    classDef WAN fill:#000000,stroke:none,color#FFF
-    classDef KEEPALIVED fill:#CC9933,stroke:none,color#000
-    classDef TRAEFIK fill:#3399CC,stroke:none,color:#FFF
-    classDef REDIS fill:#AA0000,stroke:none,color:#FFF
-
-```
-
-
 ## Parent image
 * [11notes/node:stable](https://github.com/11notes/docker-node)
 
