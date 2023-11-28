@@ -59,14 +59,6 @@ flowchart TB
     B -->|:8443| D(Traefik):::TRAEFIK
     D -->|:6379| F(Redis):::REDIS
     end
-    subgraph Docker_Nodes
-        id1[Node 1]
-        id2[Node 2]
-        idn[Node n]
-    end
-
-    Domain_A -->|:8443| Docker_Nodes
-    Domain_B --> |:8443|Docker_Nodes
 
     classDef WAN fill:#000000,stroke:none,color#FFF
     classDef KEEPALIVED fill:#CC9933,stroke:none,color#000
