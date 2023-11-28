@@ -72,6 +72,8 @@ flowchart TB
 * [11notes/node:stable](https://github.com/11notes/docker-node)
 
 ## Built with and thanks to
+* [npm::redis](https://www.npmjs.com/package/redis)
+* [npm::dockerode](https://www.npmjs.com/package/dockerode)
 * [nodejs](https://nodejs.org/en)
 * [Alpine Linux](https://alpinelinux.org)
 
