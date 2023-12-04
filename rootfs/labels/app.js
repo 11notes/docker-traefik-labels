@@ -54,7 +54,7 @@ class Labels{
         data.on('data', async(chunk) => {
           const event = JSON.parse(chunk.toString('utf8'));
           if(/Container/i.test(event?.Type) && /start|stop|restart|kill|die|destroy/i.test(event?.status)){
-            this.#log(`new docker event [${event?.Type}] for container ${event.id}`);
+            this.#log(`new docker event [${event?.status}] for container ${event.id}`);
             await this.dockerInspect(event.id, event.status);
           }
         });
