@@ -4,6 +4,7 @@ const redis = require('redis');
 class Labels{
   #docker;
   #redis;
+  #poll = false;
 
   constructor(){
     this.#docker = new Docker({socketPath: '/run/docker.sock'});
@@ -27,47 +28,66 @@ class Labels{
       console.error(error);
     });
 
-    setInterval(() => {
-      this.dockerPoll();
+    setInterval(async() => {
+      await this.dockerPoll();
     }, parseInt(process.env.LABELS_INTERVAL)*1000);
+
+    (async() => {
+      await this.dockerPoll();
+    })();
   }
 
   dockerEvents(){
     this.#docker.getEvents({}, (error, data) => {
-      data.on('data', (chunk) => {
+      data.on('data', async(chunk) => {
         const event = JSON.parse(chunk.toString('utf8'));
         if(/Container/i.test(event?.Type) && /start|stop|restart|kill|die|destroy/i.test(event?.status)){
-          this.dockerInspect(event.id, event.status);
+          await this.dockerInspect(event.id, event.status);
         }
       });
     });
   }
 
-  dockerPoll(){
-    this.#docker.listContainers((error, containers) => {
-      containers.forEach(container => {
-        this.dockerInspect(container.Id, 'start');
-      });
-    });
+  async dockerPoll(){
+    if(!this.#poll){
+      try{
+        this.#poll = true;
+        this.#docker.listContainers((error, containers) => {
+          containers.forEach(async(container) => {
+            await this.dockerInspect(container.Id, 'start');
+          });
+        });
+      }catch(e){
+        console.error(e);
+      }finally{
+        this.#poll = false;
+      }
+    }
   }
 
   dockerInspect(id, status = null){
-    const container = this.#docker.getContainer(id);
-    container.inspect(async(error, data) => {
-      for(const label in data?.Config?.Labels){
-        if(/traefik\//i.test(label)){
-          switch(true){
-            case /start|restart/i.test(status):
-              await this.#redis.set(label, data?.Config?.Labels[label], {EX:parseInt(process.env.LABELS_INTERVAL) + parseInt(process.env.LABELS_TIMEOUT)});
-            break;
+    return(new Promise((resolve, reject) => {
+      const container = this.#docker.getContainer(id);
+      container.inspect(async(error, data) => {
+        if(error){
+          reject(error);
+        }
+        for(const label in data?.Config?.Labels){
+          if(/traefik\//i.test(label)){
+            switch(true){
+              case /start|restart/i.test(status):
+                await this.#redis.set(label, data?.Config?.Labels[label], {EX:parseInt(process.env.LABELS_INTERVAL) + parseInt(process.env.LABELS_TIMEOUT)});
+              break;
 
-            case /stop|kill|die|destroy/i.test(status):
-              await this.#redis.del(label);
-            break;
+              case /stop|kill|die|destroy/i.test(status):
+                await this.#redis.del(label);
+              break;
+            }
           }
         }
-      }
-    });
+        resolve(true);
+      });
+    }));
   }
 }
 

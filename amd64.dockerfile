@@ -1,6 +1,6 @@
 # :: Header
   FROM 11notes/node:stable
-  ENV APP_VERSION=0.1.0
+  ENV APP_VERSION=0.1.1
   ENV APP_ROOT=/labels
 
 # :: Run

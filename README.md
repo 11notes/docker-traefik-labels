@@ -1,11 +1,11 @@
 # Alpine :: Traefik Labels
-![size](https://img.shields.io/docker/image-size/11notes/traefik-labels/0.1.0?color=0eb305) ![version](https://img.shields.io/docker/v/11notes/traefik-labels?color=eb7a09) ![pulls](https://img.shields.io/docker/pulls/11notes/traefik-labels?color=2b75d6) ![activity](https://img.shields.io/github/commit-activity/m/11notes/docker-traefik-labels?color=c91cb8) ![commit-last](https://img.shields.io/github/last-commit/11notes/docker-traefik-labels?color=c91cb8)
+![size](https://img.shields.io/docker/image-size/11notes/traefik-labels/0.1.1?color=0eb305) ![version](https://img.shields.io/docker/v/11notes/traefik-labels?color=eb7a09) ![pulls](https://img.shields.io/docker/pulls/11notes/traefik-labels?color=2b75d6) ![activity](https://img.shields.io/github/commit-activity/m/11notes/docker-traefik-labels?color=c91cb8) ![commit-last](https://img.shields.io/github/last-commit/11notes/docker-traefik-labels?color=c91cb8)
 
 Run Traefik Labels based on Alpine Linux. Small, lightweight, secure and fast 🏔️
 
 What can I do with this? Simply put: It will export any traefik labels on a container on the same host as this image runs to a Redis instance. This makes it possible for a centralized Traefik load balancer to update endpoints dynamically by utilizing the docker labels, just like you would on a local installation of Traefik with labels. It is meant as an alternative and simple way to proxy requests from a Traefik load balanacer to multiple docker nodes running in different networks and locations.
 
-In order to use this image, you need to setup Traefik with a Redis provider and then point this image via REDIS_URL to the same Redis instance. Each entry will have an expire timer set in Redis, so that if a container is removed by a server crashing, Redis will automatically remove stale entries as well. Entries are refreshed every 60 seconds or an all docker container events (create, run, kill, stop, restart, ...).
+In order to use this image, you need to setup Traefik with a Redis provider and then point this image via REDIS_URL to the same Redis instance. Each entry will have an expire timer set in Redis, so that if a container is removed by a server crashing, Redis will automatically remove stale entries as well. Entries are refreshed every 60 seconds or on all docker container events (create, run, kill, stop, restart, ...).
 
 ## Run
 This will export all labels from all containers to the Redis instance specified in LABELS_REDIS_URL from the same host this container is running on.
@@ -40,8 +40,8 @@ docker run --name demo \
 | Parameter | Value | Default |
 | --- | --- | --- |
 | `LABELS_REDIS_URL` | the redis URL to connect, use rediss:// for SSL | redis:://localhost:6379/0 |
-| `LABELS_INTERVAL` | in what interval container information is pulled | 60 |
-| `LABELS_TIMEOUT` | how many seconds after an interval the keys should stay till they expire | 15 |
+| `LABELS_INTERVAL` | in what interval container information is pulled | 300 |
+| `LABELS_TIMEOUT` | how many seconds after an interval the keys should stay till they expire | 30 |
 
 ## Parent image
 * [11notes/node:stable](https://github.com/11notes/docker-node)
