@@ -30,7 +30,7 @@ class Labels{
 
     this.#redis.connect();
     this.#redis.on('ready', ()=>{
-      this.#log('connected to Redis');
+      this.#log('successfully connected to redis database');
       (async() => {
         await this.dockerPoll();
       })();
@@ -53,8 +53,7 @@ class Labels{
       }else{
         data.on('data', async(chunk) => {
           const event = JSON.parse(chunk.toString('utf8'));
-          if(/Container/i.test(event?.Type) && /start|stop|restart|kill|die|destroy/i.test(event?.status)){
-            this.#log(`new docker event [${event?.status}] for container ${event.id}`);
+          if(/Container/i.test(event?.Type) && /^(start|stop|restart|kill|die|destroy)$/i.test(event?.status)){
             await this.dockerInspect(event.id, event.status);
           }
         });
@@ -83,6 +82,7 @@ class Labels{
 
   dockerInspect(id, status = null){
     return(new Promise((resolve, reject) => {
+      let log = false;
       const container = this.#docker.getContainer(id);
       container.inspect(async(error, data) => {
         if(error){
@@ -90,6 +90,12 @@ class Labels{
         }
         for(const label in data?.Config?.Labels){
           if(/traefik\//i.test(label)){
+            if(!log){
+              this.#log(`inspect container ${data.Name}${(
+                (null === status) ? '' : ` event[${status}]`
+              )}`);
+              log = true;
+            }
             switch(true){
               case /start|restart/i.test(status):
                 await this.#redis.set(label, data?.Config?.Labels[label], {EX:parseInt(process.env.LABELS_INTERVAL) + parseInt(process.env.LABELS_TIMEOUT)});
