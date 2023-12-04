@@ -68,7 +68,7 @@ class Labels{
         this.#log(`poll start (interval:${process.env.LABELS_INTERVAL})}`);
         this.#docker.listContainers((error, containers) => {
           containers.forEach(async(container) => {
-            await this.dockerInspect(container.Id, 'start');
+            await this.dockerInspect(container.Id);
           });
         });
       }catch(e){
