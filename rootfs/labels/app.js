@@ -1,5 +1,6 @@
 const Docker = require('dockerode');
 const redis = require('redis');
+const ERROR = 1;
 
 class Labels{
   #docker;
@@ -8,6 +9,14 @@ class Labels{
 
   constructor(){
     this.#docker = new Docker({socketPath: '/run/docker.sock'});
+  }
+
+  #log(message, error){
+    console.log(JSON.stringify({
+      time:new Date().toISOString(),
+      type:(error === ERROR) ? 'ERROR' : 'INFO',
+      message:message,
+    }));
   }
 
   async watch(){
@@ -21,20 +30,20 @@ class Labels{
 
     this.#redis.connect();
     this.#redis.on('ready', ()=>{
+      this.#log('connected to Redis');
+      (async() => {
+        await this.dockerPoll();
+      })();
       this.dockerEvents();
     });
 
     this.#redis.on('error', error =>{
-      console.error(error);
+      this.#log(error, ERROR);
     });
 
     setInterval(async() => {
       await this.dockerPoll();
     }, parseInt(process.env.LABELS_INTERVAL)*1000);
-
-    (async() => {
-      await this.dockerPoll();
-    })();
   }
 
   dockerEvents(){
@@ -42,6 +51,7 @@ class Labels{
       data.on('data', async(chunk) => {
         const event = JSON.parse(chunk.toString('utf8'));
         if(/Container/i.test(event?.Type) && /start|stop|restart|kill|die|destroy/i.test(event?.status)){
+          this.#log(`new docker event for container ${event.id}`);
           await this.dockerInspect(event.id, event.status);
         }
       });
@@ -52,14 +62,16 @@ class Labels{
     if(!this.#poll){
       try{
         this.#poll = true;
+        this.#log(`poll start (interval:${process.env.LABELS_INTERVAL})}`);
         this.#docker.listContainers((error, containers) => {
           containers.forEach(async(container) => {
             await this.dockerInspect(container.Id, 'start');
           });
         });
       }catch(e){
-        console.error(e);
+        this.#log(e, ERROR);
       }finally{
+        this.#log('poll end');
         this.#poll = false;
       }
     }
