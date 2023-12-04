@@ -91,7 +91,7 @@ class Labels{
         for(const label in data?.Config?.Labels){
           if(/traefik\//i.test(label)){
             if(!log){
-              this.#log(`inspect container ${data.Name}${(
+              this.#log(`inspect container ${data.Name.replace(/^\//i, '')}${(
                 (null === status) ? '' : ` event[${status}]`
               )}`);
               log = true;
