@@ -39,7 +39,7 @@ docker run --name demo \
 ## Environment
 | Parameter | Value | Default |
 | --- | --- | --- |
-| `LABELS_REDIS_URL` | the redis URL to connect, use rediss:// for SSL | redis:://localhost:6379/0 |
+| `LABELS_REDIS_URL` | the redis URL to connect, use rediss:// for SSL | rediss://localhost:6379/0 |
 | `LABELS_INTERVAL` | in what interval container information is pulled | 300 |
 | `LABELS_TIMEOUT` | how many seconds after an interval the keys should stay till they expire | 30 |
 
