@@ -7,12 +7,22 @@ What can I do with this? Simply put: It will export any traefik labels on a cont
 
 In order to use this image, you need to setup Traefik with a Redis provider and then point this image via REDIS_URL to the same Redis instance. Each entry will have an expire timer set in Redis, so that if a container is removed by a server crashing, Redis will automatically remove stale entries as well. Entries are refreshed every 60 seconds or on all docker container events (create, run, kill, stop, restart, ...).
 
+This image provides the ability to call a webhook for each container for each event or poll after the data was updates in Redis.
+
 ## Run
-This will export all labels from all containers to the Redis instance specified in LABELS_REDIS_URL from the same host this container is running on.
 ```shell
 docker run --name traefik-labels \
   -v /run/docker.sock:/run/docker.sock \
   -e LABELS_REDIS_URL="rediss://foo:bar@10.127.198.254:6379/0" \
+  -d 11notes/traefik-labels:[tag]
+```
+
+```shell
+docker run --name traefik-labels \
+  -v /run/docker.sock:/run/docker.sock \
+  -e LABELS_REDIS_URL="rediss://foo:bar@10.127.198.254:6379/0" \
+  -e LABELS_WEBHOOK="https://domain.com/traefik/labels" \
+  -e LABELS_WEBHOOK_AUTH_BASIC="foo:bar" \
   -d 11notes/traefik-labels:[tag]
 ```
 
@@ -40,8 +50,10 @@ docker run --name demo \
 | Parameter | Value | Default |
 | --- | --- | --- |
 | `LABELS_REDIS_URL` | the redis URL to connect, use rediss:// for SSL | rediss://localhost:6379/0 |
-| `LABELS_INTERVAL` | in what interval container information is pulled | 300 |
-| `LABELS_TIMEOUT` | how many seconds after an interval the keys should stay till they expire | 30 |
+| `LABELS_INTERVAL` | in what interval container information is pulled in seconds | 300 |
+| `LABELS_TIMEOUT` | how many seconds after an interval the keys should stay till they expire in seconds | 30 |
+| `LABELS_WEBHOOK` | URL to call on each event or poll for each container |  |
+| `LABELS_WEBHOOK_AUTH_BASIC` | Basic authentication to use in the form of "username:password" for the webhook |  |
 
 ## Parent image
 * [11notes/node:stable](https://github.com/11notes/docker-node)

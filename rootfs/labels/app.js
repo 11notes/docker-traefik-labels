@@ -8,7 +8,7 @@ class Labels{
   #poll = false;
 
   constructor(){
-    this.#docker = new Docker({socketPath: '/run/docker.sock'});
+    this.#docker = new Docker({socketPath:'/run/docker.sock'});
   }
 
   #log(message, error){
@@ -20,6 +20,10 @@ class Labels{
   }
 
   async watch(){
+    if('' !== process.env.LABELS_WEBHOOK){
+      this.#log(`using webhook ${process.env.LABELS_WEBHOOK}`);
+    }
+
     this.#redis = await redis.createClient({
       url:process.env.LABELS_REDIS_URL,
       pingInterval:30000,
@@ -82,29 +86,46 @@ class Labels{
 
   dockerInspect(id, status = null){
     return(new Promise((resolve, reject) => {
-      let log = false;
       const container = this.#docker.getContainer(id);
       container.inspect(async(error, data) => {
+
+        let update = false;
+        const webHook = {event:status, labels:{}}; 
+        const headers = {'Content-Type':'application/json'};
+
+        if('' !== process.env.LABELS_WEBHOOK_AUTH_BASIC){
+          headers['Authorization'] = 'Basic ' + Buffer.from(process.env.LABELS_WEBHOOK_AUTH_BASIC).toString('base64')
+        }
+
         if(error){
           reject(error);
         }
+
+        this.#log(`inspect container ${data.Name.replace(/^\//i, '')}${(
+          (null === status) ? '' : ` event[${status}]`
+        )}`);
+
+        if(/start|restart/i.test(status)){
+          update = true;
+        }
+     
         for(const label in data?.Config?.Labels){
           if(/traefik\//i.test(label)){
-            if(!log){
-              this.#log(`inspect container ${data.Name.replace(/^\//i, '')}${(
-                (null === status) ? '' : ` event[${status}]`
-              )}`);
-              log = true;
+            webHook.labels[label] = data?.Config?.Labels[label];
+            if(update){
+              await this.#redis.set(label, data?.Config?.Labels[label], {EX:parseInt(process.env.LABELS_INTERVAL) + parseInt(process.env.LABELS_TIMEOUT)});
+            }else{
+              await this.#redis.del(label);
             }
-            switch(true){
-              case /start|restart/i.test(status):
-                await this.#redis.set(label, data?.Config?.Labels[label], {EX:parseInt(process.env.LABELS_INTERVAL) + parseInt(process.env.LABELS_TIMEOUT)});
-              break;
-
-              case /stop|kill|die|destroy/i.test(status):
-                await this.#redis.del(label);
-              break;
-            }
+          }
+        }
+        if('' !== process.env.LABELS_WEBHOOK){
+          try{
+            const webHookCall = await fetch(process.env.LABELS_WEBHOOK, {method:(
+              (update) ? 'PUT' : 'DELETE'
+            ), body:JSON.stringify(webHook), headers:headers});
+          }catch(e){
+            this.#log(e, ERROR);
           }
         }
         resolve(true);
