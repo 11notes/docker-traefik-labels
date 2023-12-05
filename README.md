@@ -1,5 +1,5 @@
 # Alpine :: Traefik Labels
-![size](https://img.shields.io/docker/image-size/11notes/traefik-labels/0.1.3?color=0eb305) ![version](https://img.shields.io/docker/v/11notes/traefik-labels?color=eb7a09) ![pulls](https://img.shields.io/docker/pulls/11notes/traefik-labels?color=2b75d6) ![activity](https://img.shields.io/github/commit-activity/m/11notes/docker-traefik-labels?color=c91cb8) ![commit-last](https://img.shields.io/github/last-commit/11notes/docker-traefik-labels?color=c91cb8)
+![size](https://img.shields.io/docker/image-size/11notes/traefik-labels/0.1.4?color=0eb305) ![version](https://img.shields.io/docker/v/11notes/traefik-labels?color=eb7a09) ![pulls](https://img.shields.io/docker/pulls/11notes/traefik-labels?color=2b75d6) ![activity](https://img.shields.io/github/commit-activity/m/11notes/docker-traefik-labels?color=c91cb8) ![commit-last](https://img.shields.io/github/last-commit/11notes/docker-traefik-labels?color=c91cb8)
 
 Run Traefik Labels based on Alpine Linux. Small, lightweight, secure and fast 🏔️
 
