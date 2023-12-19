@@ -12,7 +12,6 @@ const child = fork(`${__dirname}/app.js`, [], {
 });
 child.on('error', (error) =>{
   console.error(error);
-  process.exit(1);
 });
 child.on('close', (code) =>{
   console.warn(`child process closed with exit code ${code}`);
