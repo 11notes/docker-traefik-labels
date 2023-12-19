@@ -6,15 +6,21 @@ class Labels{
   #docker;
   #redis;
   #poll = false;
+  #webhook = {
+    headers:{'Content-Type':'application/json'}
+  };
 
   constructor(){
     this.#docker = new Docker({socketPath:'/run/docker.sock'});
+    if('' !== process.env.LABELS_WEBHOOK_AUTH_BASIC){
+      this.#webhook.headers['Authorization'] = 'Basic ' + Buffer.from(process.env.LABELS_WEBHOOK_AUTH_BASIC).toString('base64')
+    }
   }
 
-  #log(message, error){
+  #log(message, type){
     console.log(JSON.stringify({
       time:new Date().toISOString(),
-      type:(error === ERROR) ? 'ERROR' : 'INFO',
+      type:(type === ERROR) ? 'ERROR' : 'INFO',
       message:message,
     }));
   }
@@ -72,7 +78,7 @@ class Labels{
         this.#docker.listContainers((error, containers) => {
           if(!error){
             containers.forEach(async(container) => {
-              await this.dockerInspect(container.Id);
+              await this.dockerInspect(container.Id, 'poll');
             });
           }
         });
@@ -90,14 +96,8 @@ class Labels{
       container.inspect(async(error, data) => {
         if(!error){
           let update = false;
-          const webHook = {event:status, labels:{}}; 
-          const headers = {'Content-Type':'application/json'};
-
-          if('' !== process.env.LABELS_WEBHOOK_AUTH_BASIC){
-            headers['Authorization'] = 'Basic ' + Buffer.from(process.env.LABELS_WEBHOOK_AUTH_BASIC).toString('base64')
-          }
-
-          if(/start|restart/i.test(status)){
+          const webHook = {event:status, labels:{}};
+          if(/start|restart|poll/i.test(status)){
             update = true;
           }
 
@@ -109,17 +109,18 @@ class Labels{
             if(/traefik\//i.test(label)){
               webHook.labels[label] = data?.Config?.Labels[label];
               if(update){
+                this.#log(`${label} = ${data?.Config?.Labels[label]}`);
                 await this.#redis.set(label, data?.Config?.Labels[label], {EX:parseInt(process.env.LABELS_INTERVAL) + parseInt(process.env.LABELS_TIMEOUT)});
               }else{
                 await this.#redis.del(label);
               }
             }
           }
-          if('' !== process.env.LABELS_WEBHOOK){
+          if('' !== process.env.LABELS_WEBHOOK){           
             try{
               await fetch(process.env.LABELS_WEBHOOK, {method:(
                 (update) ? 'PUT' : 'DELETE'
-              ), body:JSON.stringify(webHook), headers:headers});
+              ), body:JSON.stringify(webHook), headers:this.#webhook.headers, signal:AbortSignal.timeout(5000)});
             }catch(e){
               this.#log(e, ERROR);
             }
