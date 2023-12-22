@@ -5,7 +5,7 @@ Run Traefik Labels based on Alpine Linux. Small, lightweight, secure and fast ðŸ
 
 What can I do with this? Simply put: It will export any traefik labels on a container on the same host as this image runs to a Redis instance. This makes it possible for a centralized Traefik load balancer to update endpoints dynamically by utilizing the docker labels, just like you would on a local installation of Traefik with labels. It is meant as an alternative and simple way to proxy requests from a Traefik load balanacer to multiple docker nodes running in different networks and locations.
 
-In order to use this image, you need to setup Traefik with a Redis provider and then point this image via REDIS_URL to the same Redis instance. Each entry will have an expire timer set in Redis, so that if a container is removed by a server crashing, Redis will automatically remove stale entries as well. Entries are refreshed every 60 seconds or on all docker container events (create, run, kill, stop, restart, ...).
+In order to use this image, you need to setup Traefik with a Redis provider and then point this image via REDIS_URL to the same Redis instance. Each entry will have an expire timer set in Redis, so that if a container is removed by a server crashing, Redis will automatically remove stale entries as well. Entries are refreshed every 300 seconds or on all docker container events (create, run, kill, stop, restart, ...).
 
 This image provides the ability to call a webhook for each container for each event or poll after the data was updates in Redis.
 

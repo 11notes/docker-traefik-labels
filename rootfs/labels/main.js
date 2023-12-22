@@ -19,7 +19,6 @@ class Labels{
   constructor(){
     this.#docker = new Docker({socketPath:'/run/docker.sock'});
     if(undefined !== process.env.LABELS_WEBHOOK_AUTH_BASIC){
-      console.log(`process.env.LABELS_WEBHOOK_AUTH_BASIC is ${process.env.LABELS_WEBHOOK_AUTH_BASIC}`);
       this.#webhook.headers['Authorization'] = 'Basic ' + Buffer.from(process.env.LABELS_WEBHOOK_AUTH_BASIC).toString('base64')
     }
   }
