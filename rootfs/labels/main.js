@@ -18,7 +18,8 @@ class Labels{
 
   constructor(){
     this.#docker = new Docker({socketPath:'/run/docker.sock'});
-    if('' !== process.env.LABELS_WEBHOOK_AUTH_BASIC){
+    if(undefined !== process.env.LABELS_WEBHOOK_AUTH_BASIC){
+      console.log(`process.env.LABELS_WEBHOOK_AUTH_BASIC is ${process.env.LABELS_WEBHOOK_AUTH_BASIC}`);
       this.#webhook.headers['Authorization'] = 'Basic ' + Buffer.from(process.env.LABELS_WEBHOOK_AUTH_BASIC).toString('base64')
     }
   }
@@ -32,7 +33,7 @@ class Labels{
   }
 
   async watch(){
-    if('' !== process.env.LABELS_WEBHOOK){
+    if(undefined !== process.env.LABELS_WEBHOOK){
       this.#log(`using webhook ${process.env.LABELS_WEBHOOK}`);
     }
 
@@ -103,14 +104,17 @@ class Labels{
         if(!error){
           const update = (/start|poll/i.test(status)) ? true : false;
           const webHook = {event:status, labels:{}};
-
-          this.#log(`inspect container {${(data?.Name || data?.id).replace(/^\//i, '')}}${(
-            (null === status) ? '' : ` event[${status}]`
-          )}`);
+          let log = false;
       
           for(const label in data?.Config?.Labels){
             if(/traefik\//i.test(label)){
-              if('' !== process.env.LABELS_WEBHOOK){
+              if(!log){
+                this.#log(`inspect container {${(data?.Name || data?.id).replace(/^\//i, '')}}${(
+                  (null === status) ? '' : ` event[${status}]`
+                )} traefik labels`);
+                log = true;
+              }
+              if(undefined !== process.env.LABELS_WEBHOOK){
                 webHook.labels[label] = data?.Config?.Labels[label];
               }
               if(update){
@@ -121,7 +125,7 @@ class Labels{
             }
           }
 
-          if('' !== process.env.LABELS_WEBHOOK){           
+          if(undefined !== process.env.LABELS_WEBHOOK){           
             try{
               await fetch(process.env.LABELS_WEBHOOK, {method:(
                 (update) ? 'PUT' : 'DELETE'
