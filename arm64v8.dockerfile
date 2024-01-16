@@ -1,3 +1,11 @@
+# :: Util
+  FROM alpine as util
+
+  RUN set -ex; \
+    apk add --no-cache \
+      git; \
+    git clone https://github.com/11notes/util.git;
+
 # :: Builder
   FROM alpine AS qemu
   ENV QEMU_URL https://github.com/balena-io/qemu/releases/download/v3.0.0%2Bresin/qemu-3.0.0+resin-aarch64.tar.gz
@@ -5,6 +13,7 @@
 
 # :: Header
   FROM arm64v8/node:20.10.0-alpine3.19
+  COPY --from=util /util/node/util.js /labels/lib
   COPY --from=qemu qemu-aarch64-static /usr/bin
   ENV APP_ROOT=/labels
 
@@ -13,7 +22,10 @@
 
   # :: prepare image
     RUN set -ex; \
-      mkdir -p ${APP_ROOT};
+      mkdir -p ${APP_ROOT}; \
+      akp --no-cache add \
+        bind-tools; \
+      apk --no-cache upgrade;
 
   # :: install
     RUN set -ex; \

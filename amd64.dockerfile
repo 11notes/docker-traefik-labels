@@ -1,5 +1,14 @@
+# :: Util
+  FROM alpine as util
+
+  RUN set -ex; \
+    apk add --no-cache \
+      git; \
+    git clone https://github.com/11notes/util.git;
+
 # :: Header
   FROM 11notes/node:stable
+  COPY --from=util /util/node/util.js /labels/lib
   ENV APP_ROOT=/labels
 
 # :: Run
@@ -7,7 +16,10 @@
 
   # :: prepare image
     RUN set -ex; \
-      mkdir -p ${APP_ROOT};
+      mkdir -p ${APP_ROOT}; \
+      akp --no-cache add \
+        bind-tools; \
+      apk --no-cache upgrade;
 
   # :: install
     RUN set -ex; \

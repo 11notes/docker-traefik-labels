@@ -3,10 +3,13 @@ process.once('SIGINT', () => process.exit(0));
 
 const Docker = require('dockerode');
 const redis = require('redis');
+const { nsupdate } = requore('./nsupdate');
+const { logJSON } = require('/labels/lib/util.js');
 
-const ERROR = 1;
-const POLL_INTERVAL = parseInt(process.env?.LABELS_INTERVAL || 300);
-const POLL_TIMEOUT = parseInt(process.env?.LABELS_TIMEOUT|| 30);
+const ENV_REDIS_INTERVAL = parseInt(process.env?.LABELS_INTERVAL || 300);
+const ENV_REDIS_TIMEOUT = parseInt(process.env?.LABELS_TIMEOUT|| 30);
+const ENV_LABELS_WEBHOOK = process.env?.LABELS_WEBHOOK;
+const ENV_LABELS_WEBHOOK_AUTH_BASIC = process.env?.LABELS_WEBHOOK_AUTH_BASIC;
 
 class Labels{
   #docker;
@@ -18,22 +21,14 @@ class Labels{
 
   constructor(){
     this.#docker = new Docker({socketPath:'/run/docker.sock'});
-    if(undefined !== process.env.LABELS_WEBHOOK_AUTH_BASIC){
-      this.#webhook.headers['Authorization'] = 'Basic ' + Buffer.from(process.env.LABELS_WEBHOOK_AUTH_BASIC).toString('base64')
+    if(ENV_LABELS_WEBHOOK_AUTH_BASIC){
+      this.#webhook.headers['Authorization'] = 'Basic ' + Buffer.from(ENV_LABELS_WEBHOOK_AUTH_BASIC).toString('base64')
     }
   }
 
-  #log(message, type){
-    console.log(JSON.stringify({
-      time:new Date().toISOString(),
-      type:(type === ERROR) ? 'ERROR' : 'INFO',
-      message:message,
-    }));
-  }
-
   async watch(){
-    if(undefined !== process.env.LABELS_WEBHOOK){
-      this.#log(`using webhook ${process.env.LABELS_WEBHOOK}`);
+    if(ENV_LABELS_WEBHOOK){
+      logJSON('info', `using webhook ${ENV_LABELS_WEBHOOK}`);
     }
 
     this.#redis = await redis.createClient({
@@ -46,7 +41,7 @@ class Labels{
 
     this.#redis.connect();
     this.#redis.on('ready', ()=>{
-      this.#log('successfully connected to redis');
+      logJSON('info', 'successfully connected to redis');
       (async() => {
         await this.dockerPoll();
       })();
@@ -54,18 +49,18 @@ class Labels{
     });
 
     this.#redis.on('error', error =>{
-      this.#log(error, ERROR);
+      logJSON('error', error);
     });
 
     setInterval(async() => {
       await this.dockerPoll();
-    }, POLL_INTERVAL*1000);
+    }, ENV_REDIS_INTERVAL*1000);
   }
 
   dockerEvents(){
     this.#docker.getEvents({}, (error, data) => {
       if(error){
-        this.#log(error, ERROR);
+        logJSON('error', error);
       }else{
         data.on('data', async(chunk) => {
           const event = JSON.parse(chunk.toString('utf8'));
@@ -89,48 +84,82 @@ class Labels{
           }
         });
       }catch(e){
-        this.#log(e, ERROR);
+        logJSON('error', e);
       }finally{
         this.#poll = false;
       }
     }
   }
 
-  dockerInspect(id, status = null){
+  async dockerInspect(id, status = null){
     return(new Promise((resolve, reject) => {
       const container = this.#docker.getContainer(id);
       container.inspect(async(error, data) => {
         if(!error){
           const update = (/start|poll/i.test(status)) ? true : false;
-          const webHook = {event:status, labels:{}};
-          let log = false;
+          const container = {
+            event:status,
+            labels:{
+              traefik:[],
+              rfc2136:[],
+            },
+          };
+
+          const rfc2136 = {
+            WAN:{server:'', key:'', commands:[]},
+            LAN:{server:'', key:'', commands:[]},
+          }
       
           for(const label in data?.Config?.Labels){
-            if(/traefik\//i.test(label)){
-              if(!log){
-                this.#log(`inspect container {${(data?.Name || data?.id).replace(/^\//i, '')}}${(
-                  (null === status) ? '' : ` event[${status}]`
-                )} traefik labels`);
-                log = true;
-              }
-              if(undefined !== process.env.LABELS_WEBHOOK){
-                webHook.labels[label] = data?.Config?.Labels[label];
-              }
-              if(update){
-                await this.#redis.set(label, data?.Config?.Labels[label], {EX:POLL_INTERVAL + POLL_TIMEOUT});
-              }else{
-                await this.#redis.del(label);
+            switch(true){
+              case /traefik\//i.test(label):
+                if(update){
+                  await this.#redis.set(label, data?.Config?.Labels[label], {EX:ENV_REDIS_INTERVAL + ENV_REDIS_TIMEOUT});
+                }else{
+                  await this.#redis.del(label);
+                }
+                container.labels.traefik[label] = data?.Config?.Labels[label];
+              break;
+
+              case /rfc2136\//i.test(label):
+                container.labels.rfc2136[label] = data?.Config?.Labels[label];
+                const type = ((label.match(/rfc2136\/WAN\//i)) ? 'WAN' : 'LAN');
+                switch(true){
+                  case /rfc2136\/\S+\/server/i.test(label):
+                    rfc2136[type].server = data?.Config?.Labels[label];
+                  break;
+
+                  case /rfc2136\/\S+\/key/i.test(label):
+                    rfc2136[type].key = data?.Config?.Labels[label];
+                  break;
+
+                  default:
+                    if(!update){
+                      data?.Config?.Labels[label] = data?.Config?.Labels[label].replace(/update add/i, 'update delete');
+                    }
+                    rfc2136[type].commands.push(data?.Config?.Labels[label]);
+                }
+              break;
+            }
+          }
+
+          for(const type in rfc2136){
+            if(rfc2136[type].commands.length > 0 && rfc2136[type].server && rfc2136[type].key){
+              try{
+                await nsupdate(rfc2136[type].server, rfc2136[type].key, rfc2136[type].commands);
+              }catch(e){
+                logJSON('error', e);
               }
             }
           }
 
-          if(undefined !== process.env.LABELS_WEBHOOK){           
+          if(ENV_LABELS_WEBHOOK){           
             try{
-              await fetch(process.env.LABELS_WEBHOOK, {method:(
+              await fetch(ENV_LABELS_WEBHOOK, {method:(
                 (update) ? 'PUT' : 'DELETE'
-              ), body:JSON.stringify(webHook), headers:this.#webhook.headers, signal:AbortSignal.timeout(2500)});
+              ), body:JSON.stringify(container), headers:this.#webhook.headers, signal:AbortSignal.timeout(2500)});
             }catch(e){
-              this.#log(e, ERROR);
+              logJSON('error', e);
             }
           }
 
