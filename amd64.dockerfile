@@ -17,7 +17,7 @@
   # :: prepare image
     RUN set -ex; \
       mkdir -p ${APP_ROOT}; \
-      akp --no-cache add \
+      apk --no-cache add \
         bind-tools; \
       apk --no-cache upgrade;
 
