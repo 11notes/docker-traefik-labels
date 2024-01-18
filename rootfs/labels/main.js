@@ -11,6 +11,12 @@ const ENV_REDIS_TIMEOUT = parseInt(process.env?.LABELS_TIMEOUT|| 30);
 const ENV_LABELS_WEBHOOK = process.env?.LABELS_WEBHOOK;
 const ENV_LABELS_WEBHOOK_AUTH_BASIC = process.env?.LABELS_WEBHOOK_AUTH_BASIC;
 
+logJSON('info', {config:{
+  LABELS_INTERVA:ENV_REDIS_INTERVAL,
+  LABELS_TIMEOUT:ENV_REDIS_TIMEOUT,
+  LABELS_WEBHOOK:ENV_LABELS_WEBHOOK
+}});
+
 class Labels{
   #docker;
   #redis;
@@ -114,6 +120,7 @@ class Labels{
             switch(true){
               case /traefik\//i.test(label):
                 if(update){
+                  logJSON('debug', {key:label, value:data.Config.Labels[label]});
                   await this.#redis.set(label, data.Config.Labels[label], {EX:ENV_REDIS_INTERVAL + ENV_REDIS_TIMEOUT});
                 }else{
                   await this.#redis.del(label);
@@ -145,6 +152,7 @@ class Labels{
 
           for(const type in rfc2136){
             if(rfc2136[type].commands.length > 0 && rfc2136[type].server && rfc2136[type].key){
+              logJSON('debug', rfc2136[type].commands);
               try{
                 await nsupdate(rfc2136[type].server, rfc2136[type].key, rfc2136[type].commands);
               }catch(e){
