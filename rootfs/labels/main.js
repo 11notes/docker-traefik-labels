@@ -4,17 +4,18 @@ process.once('SIGINT', () => process.exit(0));
 const Docker = require('dockerode');
 const redis = require('redis');
 const { nsupdate } = require('./nsupdate');
-const { logJSON } = require('/labels/lib/util.js');
+const { elevenLogJSON } = require('/labels/lib/util.js');
 
 const ENV_REDIS_INTERVAL = parseInt(process.env?.LABELS_INTERVAL || 300);
 const ENV_REDIS_TIMEOUT = parseInt(process.env?.LABELS_TIMEOUT|| 30);
 const ENV_LABELS_WEBHOOK = process.env?.LABELS_WEBHOOK;
 const ENV_LABELS_WEBHOOK_AUTH_BASIC = process.env?.LABELS_WEBHOOK_AUTH_BASIC;
 
-logJSON('info', {config:{
-  LABELS_INTERVA:ENV_REDIS_INTERVAL,
+elevenLogJSON('info', {config:{
+  LABELS_INTERVAL :ENV_REDIS_INTERVAL,
   LABELS_TIMEOUT:ENV_REDIS_TIMEOUT,
-  LABELS_WEBHOOK:ENV_LABELS_WEBHOOK
+  LABELS_WEBHOOK:ENV_LABELS_WEBHOOK,
+  LABELS_WEBHOOK_AUTH_BASIC:((ENV_LABELS_WEBHOOK_AUTH_BASIC) ? true: false)
 }});
 
 class Labels{
@@ -33,10 +34,6 @@ class Labels{
   }
 
   async watch(){
-    if(ENV_LABELS_WEBHOOK){
-      logJSON('info', `using webhook ${ENV_LABELS_WEBHOOK}`);
-    }
-
     this.#redis = await redis.createClient({
       url:process.env.LABELS_REDIS_URL,
       pingInterval:30000,
@@ -47,7 +44,7 @@ class Labels{
 
     this.#redis.connect();
     this.#redis.on('ready', ()=>{
-      logJSON('info', 'successfully connected to redis');
+      elevenLogJSON('info', 'successfully connected to redis');
       (async() => {
         await this.dockerPoll();
       })();
@@ -55,7 +52,7 @@ class Labels{
     });
 
     this.#redis.on('error', error =>{
-      logJSON('error', error);
+      elevenLogJSON('error', error);
     });
 
     setInterval(async() => {
@@ -66,7 +63,7 @@ class Labels{
   dockerEvents(){
     this.#docker.getEvents({}, (error, data) => {
       if(error){
-        logJSON('error', error);
+        elevenLogJSON('error', error);
       }else{
         data.on('data', async(chunk) => {
           const event = JSON.parse(chunk.toString('utf8'));
@@ -90,7 +87,7 @@ class Labels{
           }
         });
       }catch(e){
-        logJSON('error', e);
+        elevenLogJSON('error', e);
       }finally{
         this.#poll = false;
       }
@@ -120,7 +117,6 @@ class Labels{
             switch(true){
               case /traefik\//i.test(label):
                 if(update){
-                  logJSON('debug', {key:label, value:data.Config.Labels[label]});
                   await this.#redis.set(label, data.Config.Labels[label], {EX:ENV_REDIS_INTERVAL + ENV_REDIS_TIMEOUT});
                 }else{
                   await this.#redis.del(label);
@@ -152,11 +148,10 @@ class Labels{
 
           for(const type in rfc2136){
             if(rfc2136[type].commands.length > 0 && rfc2136[type].server && rfc2136[type].key){
-              logJSON('debug', rfc2136[type].commands);
               try{
                 await nsupdate(rfc2136[type].server, rfc2136[type].key, rfc2136[type].commands);
               }catch(e){
-                logJSON('error', e);
+                elevenLogJSON('error', e);
               }
             }
           }
@@ -167,7 +162,7 @@ class Labels{
                 (update) ? 'PUT' : 'DELETE'
               ), body:JSON.stringify(container), headers:this.#webhook.headers, signal:AbortSignal.timeout(2500)});
             }catch(e){
-              logJSON('error', e);
+              elevenLogJSON('error', e);
             }
           }
 
