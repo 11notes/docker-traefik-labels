@@ -3,7 +3,7 @@ process.once('SIGINT', () => process.exit(0));
 
 const Docker = require('dockerode');
 const redis = require('redis');
-const { nsupdate } = requore('./nsupdate');
+const { nsupdate } = require('./nsupdate');
 const { logJSON } = require('/labels/lib/util.js');
 
 const ENV_REDIS_INTERVAL = parseInt(process.env?.LABELS_INTERVAL || 300);
@@ -114,30 +114,30 @@ class Labels{
             switch(true){
               case /traefik\//i.test(label):
                 if(update){
-                  await this.#redis.set(label, data?.Config?.Labels[label], {EX:ENV_REDIS_INTERVAL + ENV_REDIS_TIMEOUT});
+                  await this.#redis.set(label, data.Config.Labels[label], {EX:ENV_REDIS_INTERVAL + ENV_REDIS_TIMEOUT});
                 }else{
                   await this.#redis.del(label);
                 }
-                container.labels.traefik[label] = data?.Config?.Labels[label];
+                container.labels.traefik[label] = data.Config.Labels[label];
               break;
 
               case /rfc2136\//i.test(label):
-                container.labels.rfc2136[label] = data?.Config?.Labels[label];
+                container.labels.rfc2136[label] = data.Config.Labels[label];
                 const type = ((label.match(/rfc2136\/WAN\//i)) ? 'WAN' : 'LAN');
                 switch(true){
                   case /rfc2136\/\S+\/server/i.test(label):
-                    rfc2136[type].server = data?.Config?.Labels[label];
+                    rfc2136[type].server = data.Config.Labels[label];
                   break;
 
                   case /rfc2136\/\S+\/key/i.test(label):
-                    rfc2136[type].key = data?.Config?.Labels[label];
+                    rfc2136[type].key = data.Config.Labels[label];
                   break;
 
                   default:
                     if(!update){
-                      data?.Config?.Labels[label] = data?.Config?.Labels[label].replace(/update add/i, 'update delete');
+                      data.Config.Labels[label] = data.Config.Labels[label].replace(/update add/i, 'update delete');
                     }
-                    rfc2136[type].commands.push(data?.Config?.Labels[label]);
+                    rfc2136[type].commands.push(data.Config.Labels[label]);
                 }
               break;
             }

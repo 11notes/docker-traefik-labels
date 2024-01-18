@@ -8,7 +8,6 @@
 
 # :: Header
   FROM 11notes/node:stable
-  COPY --from=util /util/node/util.js /labels/lib
   ENV APP_ROOT=/labels
 
 # :: Run
@@ -16,10 +15,12 @@
 
   # :: prepare image
     RUN set -ex; \
-      mkdir -p ${APP_ROOT}; \
+      mkdir -p ${APP_ROOT}/lib; \
       apk --no-cache add \
         bind-tools; \
       apk --no-cache upgrade;
+
+    COPY --from=util /util/node/util.js /labels/lib
 
   # :: install
     RUN set -ex; \

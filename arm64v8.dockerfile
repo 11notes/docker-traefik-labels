@@ -13,7 +13,6 @@
 
 # :: Header
   FROM arm64v8/node:20.10.0-alpine3.19
-  COPY --from=util /util/node/util.js /labels/lib
   COPY --from=qemu qemu-aarch64-static /usr/bin
   ENV APP_ROOT=/labels
 
@@ -22,10 +21,12 @@
 
   # :: prepare image
     RUN set -ex; \
-      mkdir -p ${APP_ROOT}; \
+      mkdir -p ${APP_ROOT}/lib; \
       apk --no-cache add \
         bind-tools; \
       apk --no-cache upgrade;
+
+    COPY --from=util /util/node/util.js /labels/lib
 
   # :: install
     RUN set -ex; \
