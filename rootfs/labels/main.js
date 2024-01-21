@@ -44,7 +44,6 @@ class Labels{
 
     this.#redis.connect();
     this.#redis.on('ready', ()=>{
-      elevenLogJSON('info', 'successfully connected to redis');
       (async() => {
         await this.dockerPoll();
       })();
@@ -112,6 +111,10 @@ class Labels{
             WAN:{server:'', key:'', commands:[]},
             LAN:{server:'', key:'', commands:[]},
           }
+
+          elevenLogJSON('info', `inspect container {${(data?.Name || data?.id).replace(/^\//i, '')}}${(
+            (null === status) ? '' : ` event[${status}]`
+          )}`);
       
           for(const label in data?.Config?.Labels){
             switch(true){
