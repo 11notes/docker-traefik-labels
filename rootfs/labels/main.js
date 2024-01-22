@@ -115,9 +115,7 @@ class Labels{
             LAN:{server:'', key:'', commands:[]},
           }
 
-          elevenLogJSON('info', `container {${container.name}}.inspect()${(
-            (null === status) ? '' : ` event[${status}]`
-          )}`);
+          elevenLogJSON('info', {container:container.name, event:status, method:'inspect'});
       
           for(const label in data?.Config?.Labels){
             switch(true){
@@ -157,7 +155,7 @@ class Labels{
           for(const type in rfc2136){
             if(rfc2136[type].commands.length > 0 && rfc2136[type].server && rfc2136[type].key){
               try{
-                elevenLogJSON('info', `container {${container.name}}.rfc2136() update ${type} DNS entries`);
+                elevenLogJSON('info', {container:container.name, event:status, method:`nsupdate ${rfc2136[type].server}`});
                 await nsupdate(rfc2136[type].server, rfc2136[type].key, rfc2136[type].commands);
               }catch(e){
                 elevenLogJSON('error', e);
@@ -171,7 +169,7 @@ class Labels{
                 (update) ? 'PUT' : 'DELETE'
               ), body:JSON.stringify(container), headers:this.#webhook.headers, signal:AbortSignal.timeout(2500)});
             }catch(e){
-              elevenLogJSON('error', e);
+              elevenLogJSON('error', {method:'fetch(webhook)', error:e});
             }
           }
 
