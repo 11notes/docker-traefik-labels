@@ -164,6 +164,10 @@ class Labels{
                 if(rfc2136[type].commands.length > 0){
                   elevenLogJSON('info', {container:container.name, event:status, method:`nsupdate ${rfc2136[type].server}`});
                   await nsupdate(rfc2136[type].server, rfc2136[type].key, rfc2136[type].commands);
+                }else{
+                  if(ENV_LABELS_RFC2136_ONLY_UPDATE_ON_CHANGE){
+                    elevenLogJSON('info', {container:container.name, event:status, method:`nsupdate ${rfc2136[type].server} skipped due to same record data`});
+                  }
                 }
               }catch(e){
                 elevenLogJSON('error', e);
@@ -192,8 +196,10 @@ class Labels{
     if(matches && matches.length >= 4){
       try{
         const record = await dig(server, matches[2], matches[1]);
-        const match = record.match(new RegExp(matches[3], 'ig'));
-        elevenLogJSON('debug', {method:'rfc2136KnownRecord()', params:{server:server, nsupdate:nsupdate}, matches:matches, known:{src:record, dst:matches[3]}});
+        const match = (
+          (record.match(new RegExp(matches[3], 'ig'))) ? true : false
+        );
+        elevenLogJSON('debug', {method:'rfc2136KnownRecord()', params:{server:server, nsupdate:nsupdate}, match:{A:record, B:matches[3], match:match}});
         return(match);
       }catch(e){
         elevenLogJSON('error', e);
