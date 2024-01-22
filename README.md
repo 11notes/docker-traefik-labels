@@ -1,5 +1,5 @@
 # Alpine :: Traefik Labels
-![size](https://img.shields.io/docker/image-size/11notes/traefik-labels/amd64-0.1.8?color=0eb305) ![version](https://img.shields.io/docker/v/11notes/traefik-labels/amd64-0.1.8?color=eb7a09) ![pulls](https://img.shields.io/docker/pulls/11notes/traefik-labels?color=2b75d6) ![activity](https://img.shields.io/github/commit-activity/m/11notes/docker-traefik-labels?color=c91cb8) ![commit-last](https://img.shields.io/github/last-commit/11notes/docker-traefik-labels?color=c91cb8)
+![size](https://img.shields.io/docker/image-size/11notes/traefik-labels/amd64-0.1.9?color=0eb305) ![version](https://img.shields.io/docker/v/11notes/traefik-labels/amd64-0.1.9?color=eb7a09) ![pulls](https://img.shields.io/docker/pulls/11notes/traefik-labels?color=2b75d6) ![activity](https://img.shields.io/github/commit-activity/m/11notes/docker-traefik-labels?color=c91cb8) ![commit-last](https://img.shields.io/github/last-commit/11notes/docker-traefik-labels?color=c91cb8)
 
 Run Traefik Labels based on Alpine Linux. Small, lightweight, secure and fast 🏔️
 
@@ -49,11 +49,11 @@ docker run --name traefik-rfc2136-demo \
   -l "traefik/http/services/demo.domain.com/loadbalancer/servers/0/url=http://fqdn-of-docker-node:8080" \
   -l "rfc2136/WAN/server=ns.domain.com" \
   -l "rfc2136/WAN/key=algo:name:secret" \
-  -l "rfc2136/WAN/nsupdate=update add foo.domain.com A 175.12.41.11" \
-  -l "rfc2136/WAN/nsupdate=update add foo.domain.com TXT \"hello from traefik-labels!\"" \
+  -l "rfc2136/WAN/nsupdate=update add foo.domain.com 300 A 175.12.41.11" \
+  -l "rfc2136/WAN/nsupdate=update add foo.domain.com 300 TXT \"hello from traefik-labels!\"" \
   -l "rfc2136/LAN/server=ns.domain.local" \
   -l "rfc2136/LAN/key=algo:name:secret" \
-  -l "rfc2136/LAN/nsupdate=update add foo.domain.local A 192.168.12.54" \
+  -l "rfc2136/LAN/nsupdate=update add foo.domain.local 300 A 192.168.12.54" \
   -d 11notes/nginx:stable
 ```
 
@@ -75,7 +75,7 @@ docker run --name traefik-rfc2136-demo \
 | `LABELS_TIMEOUT` | how many seconds after an interval the keys should stay till they expire in seconds | 30 |
 | `LABELS_WEBHOOK` | URL to call on each event or poll for each container |  |
 | `LABELS_WEBHOOK_AUTH_BASIC` | Basic authentication to use in the form of "username:password" for the webhook |  |
-| `LABELS_RFC2136_ONLY_UPDATE_ON_CHANGE` | Only update DNS entries if they are new or changed (will use dig on each call!) | false |
+| `LABELS_RFC2136_ONLY_UPDATE_ON_CHANGE` | Only update DNS entries if they are new or changed (will use dig on each call to the set server) | false |
 
 ## Parent image
 * [11notes/node:stable](https://hub.docker.com/r/11notes/node)

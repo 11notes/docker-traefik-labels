@@ -7,6 +7,7 @@ exports.nsupdate = async(server, key, commands) => {
   commands.push('quit');
 
   return(new Promise((resolve, reject) => {
+    elevenLogJSON('debug', {method:'nsupdate()', params:arguments});
     const nsupdate = spawn('/usr/bin/nsupdate', ['-y', key]);
     const io = {stdout:'', stderr:''};
     nsupdate.stderr.on('data', data => {io.stderr += data.toString()});
