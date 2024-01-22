@@ -193,7 +193,7 @@ class Labels{
       try{
         const record = await dig(server, matches[2], matches[1]);
         const match = record.match(new RegExp(matches[3], 'ig'));
-        elevenLogJSON('debug', {method:'rfc2136KnownRecord()', params:{server:server, nsupdate:nsupdate}, matches:matches, known:{src:record, dst:match[3]}});
+        elevenLogJSON('debug', {method:'rfc2136KnownRecord()', params:{server:server, nsupdate:nsupdate}, matches:matches, known:{src:record, dst:matches[3]}});
         return(match);
       }catch(e){
         elevenLogJSON('error', e);
