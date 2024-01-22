@@ -17,7 +17,8 @@ elevenLogJSON('info', {config:{
   LABELS_INTERVAL :ENV_REDIS_INTERVAL,
   LABELS_TIMEOUT:ENV_REDIS_TIMEOUT,
   LABELS_WEBHOOK:ENV_LABELS_WEBHOOK,
-  LABELS_WEBHOOK_AUTH_BASIC:((ENV_LABELS_WEBHOOK_AUTH_BASIC) ? true: false)
+  LABELS_WEBHOOK_AUTH_BASIC:((ENV_LABELS_WEBHOOK_AUTH_BASIC) ? true: false),
+  LABELS_RFC2136_ONLY_UPDATE_ON_CHANGE:ENV_LABELS_RFC2136_ONLY_UPDATE_ON_CHANGE
 }});
 
 class Labels{
@@ -144,9 +145,7 @@ class Labels{
                     if(!update){
                       data.Config.Labels[label] = data.Config.Labels[label].replace(/update add/i, 'update delete');
                     }
-                    if((ENV_LABELS_RFC2136_ONLY_UPDATE_ON_CHANGE && !await this.rfc2136KnownRecord(rfc2136[type].server, data.Config.Labels[label])) || true){                      
-                      rfc2136[type].commands.push(data.Config.Labels[label]);
-                    }
+                    rfc2136[type].commands.push(data.Config.Labels[label]);
                 }
               break;
             }
@@ -154,9 +153,18 @@ class Labels{
 
           for(const type in rfc2136){
             if(rfc2136[type].commands.length > 0 && rfc2136[type].server && rfc2136[type].key){
+              if(ENV_LABELS_RFC2136_ONLY_UPDATE_ON_CHANGE){
+                for(let i=0; i<rfc2136[type].commands.length; i++){
+                  if(await this.rfc2136KnownRecord(rfc2136[type].server, rfc2136[type].commands[i])){
+                    rfc2136[type].commands.splice(i, 1);
+                  }
+                }
+              }
               try{
-                elevenLogJSON('info', {container:container.name, event:status, method:`nsupdate ${rfc2136[type].server}`});
-                await nsupdate(rfc2136[type].server, rfc2136[type].key, rfc2136[type].commands);
+                if(rfc2136[type].commands.length > 0){
+                  elevenLogJSON('info', {container:container.name, event:status, method:`nsupdate ${rfc2136[type].server}`});
+                  await nsupdate(rfc2136[type].server, rfc2136[type].key, rfc2136[type].commands);
+                }
               }catch(e){
                 elevenLogJSON('error', e);
               }
@@ -184,7 +192,7 @@ class Labels{
     if(matches && matches.length >= 4){
       try{
         const record = await dig(server, matches[2], matches[1]);
-        return(matches[1].match(new RegExp(record, 'ig')));
+        return(matches[3].match(new RegExp(record, 'ig')));
       }catch(e){
         elevenLogJSON('error', e);
         return(false);
