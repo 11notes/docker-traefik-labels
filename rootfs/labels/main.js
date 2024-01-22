@@ -4,12 +4,14 @@ process.once('SIGINT', () => process.exit(0));
 const Docker = require('dockerode');
 const redis = require('redis');
 const { nsupdate } = require('./nsupdate');
+const { dig } = require('./dig');
 const { elevenLogJSON } = require('/labels/lib/util.js');
 
 const ENV_REDIS_INTERVAL = parseInt(process.env?.LABELS_INTERVAL || 300);
 const ENV_REDIS_TIMEOUT = parseInt(process.env?.LABELS_TIMEOUT|| 30);
 const ENV_LABELS_WEBHOOK = process.env?.LABELS_WEBHOOK;
 const ENV_LABELS_WEBHOOK_AUTH_BASIC = process.env?.LABELS_WEBHOOK_AUTH_BASIC;
+const ENV_LABELS_RFC2136_ONLY_UPDATE_ON_CHANGE = process.env?.LABELS_RFC2136_ONLY_UPDATE_ON_CHANGE || false;
 
 elevenLogJSON('info', {config:{
   LABELS_INTERVAL :ENV_REDIS_INTERVAL,
@@ -100,6 +102,7 @@ class Labels{
         if(!error){
           const update = (/start|poll/i.test(status)) ? true : false;
           const container = {
+            name:(data?.Name || data?.id).replace(/^\//i, ''),
             event:status,
             labels:{
               traefik:[],
@@ -112,7 +115,7 @@ class Labels{
             LAN:{server:'', key:'', commands:[]},
           }
 
-          elevenLogJSON('info', `inspect container {${(data?.Name || data?.id).replace(/^\//i, '')}}${(
+          elevenLogJSON('info', `container {${container.name}}.inspect()${(
             (null === status) ? '' : ` event[${status}]`
           )}`);
       
@@ -143,7 +146,9 @@ class Labels{
                     if(!update){
                       data.Config.Labels[label] = data.Config.Labels[label].replace(/update add/i, 'update delete');
                     }
-                    rfc2136[type].commands.push(data.Config.Labels[label]);
+                    if((ENV_LABELS_RFC2136_ONLY_UPDATE_ON_CHANGE && !await this.rfc2136KnownRecord(rfc2136[type].server, data.Config.Labels[label])) || true){                      
+                      rfc2136[type].commands.push(data.Config.Labels[label]);
+                    }
                 }
               break;
             }
@@ -152,6 +157,7 @@ class Labels{
           for(const type in rfc2136){
             if(rfc2136[type].commands.length > 0 && rfc2136[type].server && rfc2136[type].key){
               try{
+                elevenLogJSON('info', `container {${container.name}}.rfc2136() update ${type} DNS entries`);
                 await nsupdate(rfc2136[type].server, rfc2136[type].key, rfc2136[type].commands);
               }catch(e){
                 elevenLogJSON('error', e);
@@ -173,6 +179,19 @@ class Labels{
         }
       });
     }));
+  }
+
+  async rfc2136KnownRecord(server, nsupdate){
+    const matches = nsupdate.match(/update add (\S+) \d+ (\S+) (\S+)/i);
+    if(matches && matches.length >= 4){
+      try{
+        const record = await dig(server, matches[2], matches[1]);
+        return(matches[1].match(new RegExp(record, 'ig')));
+      }catch(e){
+        elevenLogJSON('error', e);
+        return(false);
+      }
+    }    
   }
 }
 

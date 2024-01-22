@@ -75,6 +75,7 @@ docker run --name traefik-rfc2136-demo \
 | `LABELS_TIMEOUT` | how many seconds after an interval the keys should stay till they expire in seconds | 30 |
 | `LABELS_WEBHOOK` | URL to call on each event or poll for each container |  |
 | `LABELS_WEBHOOK_AUTH_BASIC` | Basic authentication to use in the form of "username:password" for the webhook |  |
+| `LABELS_RFC2136_ONLY_UPDATE_ON_CHANGE` | Only update DNS entries if they are new or changed (will use dig on each call!) | false |
 
 ## Parent image
 * [11notes/node:stable](https://hub.docker.com/r/11notes/node)
