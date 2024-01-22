@@ -1,4 +1,5 @@
 const { spawn } = require('node:child_process');
+const { elevenLogJSON } = require('/labels/lib/util.js');
 
 exports.dig = async(resolver, type, record) => {
   return(new Promise((resolve, reject) => {
