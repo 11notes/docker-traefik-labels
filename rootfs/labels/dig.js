@@ -9,7 +9,7 @@ exports.dig = async(resolver, type, record) => {
     dig.stdout.on('data', data => {io.stdout += (data.toString()).replace(/[\r\n]*$/ig, '')});
     dig.on('error', error => {reject(error)});
     dig.on('close', code =>{
-      elevenLogJSON('debug', {method:'dig()', params:arguments, io:io});
+      elevenLogJSON('debug', {method:'dig()', params:{resolver:resolver, type:type, record:record}, io:io});
       switch(true){
         case /no servers could be reached/ig.test(io.stdout): io.stderr += io.stdout; break;
       }
