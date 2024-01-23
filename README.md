@@ -10,6 +10,9 @@ In order to use this image, you need to setup Traefik with a Redis provider and 
 
 This image provides the ability to call a webhook for each container for each event or poll after the data was updates in Redis and or nsupdate.
 
+## Volumes
+* **/labels/ssl** - Directory of ssl certificates for TLS<sup>1</sup>
+
 ## Run
 ```shell
 docker run --name traefik-labels \
@@ -21,6 +24,15 @@ docker run --name traefik-labels \
 ```shell
 docker run --name traefik-labels \
   -v /run/docker.sock:/run/docker.sock \
+  -e LABELS_REDIS_URL="rediss://foo:bar@10.127.198.254:6379/0" \
+  -e LABELS_WEBHOOK="https://domain.com/traefik/labels" \
+  -e LABELS_WEBHOOK_AUTH_BASIC="foo:bar" \
+  -d 11notes/traefik-labels:[tag]
+```
+
+```shell
+docker run --name traefik-labels \
+  -v .../ssl:/labels/ssl \
   -e LABELS_REDIS_URL="rediss://foo:bar@10.127.198.254:6379/0" \
   -e LABELS_WEBHOOK="https://domain.com/traefik/labels" \
   -e LABELS_WEBHOOK_AUTH_BASIC="foo:bar" \
@@ -65,6 +77,9 @@ docker run --name traefik-rfc2136-demo \
 | `gid` | 1000 | group id 1000 |
 | `home` | /labels | home directory of user docker |
 | `api` | https://${IP}:5000 | HTTPS endpoint of Docker registry |
+| `ca.crt` | /labels/ssl/ca.crt | Certificate of CA for TLS<sup>1</sup> |
+| `client.crt` | /labels/ssl/client.crt | Certificate of client for TLS<sup>1</sup> |
+| `client.key` | /labels/ssl/client.key | Private key of client for TLS<sup>1</sup> |
 
 ## Environment
 | Parameter | Value | Default |
@@ -76,7 +91,9 @@ docker run --name traefik-rfc2136-demo \
 | `LABELS_TIMEOUT` | how many seconds after an interval the keys should stay till they expire in seconds | 30 |
 | `LABELS_WEBHOOK` | URL to call on each event or poll for each container |  |
 | `LABELS_WEBHOOK_AUTH_BASIC` | Basic authentication to use in the form of "username:password" for the webhook |  |
-| `LABELS_RFC2136_ONLY_UPDATE_ON_CHANGE` | Only update DNS entries if they are new or changed (will use dig on each call to the set server) | false |
+| `LABELS_RFC2136_ONLY_UPDATE_ON_CHANGE` | Only update DNS entries if they are new or changed (will use dig on each call to the set server) |  |
+| `LABELS_DOCKER_IP` | Used for TLS<sup>1</sup> authentication against dockerd |  |
+| `LABELS_DOCKER_PORT` | Used for TLS<sup>1</sup> authentication against dockerd |  |
 
 ## Parent image
 * [11notes/node:stable](https://hub.docker.com/r/11notes/node)
@@ -91,3 +108,17 @@ docker run --name traefik-rfc2136-demo \
 * Only use rootless container runtime (podman, rootless docker)
 * Don't bind to ports < 1024 (requires root), use NAT/reverse proxy (haproxy, traefik, nginx)
 * Do not access docker.sock as root
+* Use TLS if you can't access docker.sock as non-root
+
+## Disclaimers
+* <sup>1</sup> For TLS to work you need proper certificates in place for your dockerd and your clients. The CN in the certificate needs to match the FQDN or IP you have set on the docker node, you can set multiple by using SAN. See an example of a daemon.json configuration to enable TLS.
+```json
+{
+  "tls": true,
+  "tlsverify": true,
+  "tlscacert": "/etc/docker/ca.crt",
+  "tlscert": "/etc/docker/server.crt",
+  "tlskey": "/etc/docker/server.key",
+  "hosts": ["unix:///var/run/docker.sock", "tcp://0.0.0.0:2376"]
+}
+```
