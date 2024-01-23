@@ -1,5 +1,5 @@
 # Alpine :: Traefik Labels
-![size](https://img.shields.io/docker/image-size/11notes/traefik-labels/amd64-0.1.9?color=0eb305) ![version](https://img.shields.io/docker/v/11notes/traefik-labels/amd64-0.1.9?color=eb7a09) ![pulls](https://img.shields.io/docker/pulls/11notes/traefik-labels?color=2b75d6) ![activity](https://img.shields.io/github/commit-activity/m/11notes/docker-traefik-labels?color=c91cb8) ![commit-last](https://img.shields.io/github/last-commit/11notes/docker-traefik-labels?color=c91cb8)
+![size](https://img.shields.io/docker/image-size/11notes/traefik-labels/amd64-0.1.10?color=0eb305) ![version](https://img.shields.io/docker/v/11notes/traefik-labels/amd64-0.1.10?color=eb7a09) ![pulls](https://img.shields.io/docker/pulls/11notes/traefik-labels?color=2b75d6) ![activity](https://img.shields.io/github/commit-activity/m/11notes/docker-traefik-labels?color=c91cb8) ![commit-last](https://img.shields.io/github/last-commit/11notes/docker-traefik-labels?color=c91cb8)
 
 Run Traefik Labels based on Alpine Linux. Small, lightweight, secure and fast 🏔️
 
@@ -84,8 +84,8 @@ docker run --name traefik-rfc2136-demo \
 ## Environment
 | Parameter | Value | Default |
 | --- | --- | --- |
-| `TZ` | [Time Zone](https://en.wikipedia.org/wiki/List_of_tz_database_time_zones) | null |
-| `DEBUG` | Show debug information | null |
+| `TZ` | [Time Zone](https://en.wikipedia.org/wiki/List_of_tz_database_time_zones) | |
+| `DEBUG` | Show debug information | |
 | `LABELS_REDIS_URL` | the redis URL to connect, use rediss:// for SSL | rediss://localhost:6379/0 |
 | `LABELS_INTERVAL` | in what interval container information is pulled in seconds | 300 |
 | `LABELS_TIMEOUT` | how many seconds after an interval the keys should stay till they expire in seconds | 30 |
