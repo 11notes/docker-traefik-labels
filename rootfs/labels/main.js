@@ -1,6 +1,7 @@
 process.once('SIGTERM', () => process.exit(0));
 process.once('SIGINT', () => process.exit(0));
 
+const fs = require('fs');
 const Docker = require('dockerode');
 const redis = require('redis');
 const { nsupdate } = require('./nsupdate');
@@ -30,7 +31,27 @@ class Labels{
   };
 
   constructor(){
-    this.#docker = new Docker({socketPath:'/run/docker.sock'});
+    switch(true){
+      case fs.existsSync('/run/docker.sock'):
+        elevenLogJSON('info', 'connect to Docker socket');
+        this.#docker = new Docker({socketPath:'/run/docker.sock'});
+      break;
+
+      case fs.existsSync(`${process.env?.APP_ROOT}/ssl/ca.crt`):
+        elevenLogJSON('info', 'connect to Docker API via TLS verify');
+        this.#docker = new Docker({
+          protocol:'https',
+          host:process.env?.LABELS_DOCKER_IP,
+          port: process.env.LABELS_DOCKER_PORT || 2376,
+          ca:fs.readFileSync(`${process.env?.APP_ROOT}/ssl/ca.crt`),
+          cert:fs.readFileSync(`${process.env?.APP_ROOT}/ssl/client.crt`),
+          key:fs.readFileSync(`${process.env?.APP_ROOT}/ssl/client.key`)
+        });
+      break;
+
+      default:
+        elevenLogJSON('error', 'No docker API available, add /run/docker.sock (non-root) or use TLS verify authentication!');
+    }
     if(ENV_LABELS_WEBHOOK_AUTH_BASIC){
       this.#webhook.headers['Authorization'] = 'Basic ' + Buffer.from(ENV_LABELS_WEBHOOK_AUTH_BASIC).toString('base64')
     }
