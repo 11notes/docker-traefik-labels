@@ -78,8 +78,8 @@ docker run --name traefik-rfc2136-demo \
 | `home` | /labels | home directory of user docker |
 | `api` | https://${IP}:5000 | HTTPS endpoint of Docker registry |
 | `ca.crt` | /labels/ssl/ca.crt | Certificate of CA for TLS<sup>1</sup> |
-| `client.crt` | /labels/ssl/client.crt | Certificate of client for TLS<sup>1</sup> |
-| `client.key` | /labels/ssl/client.key | Private key of client for TLS<sup>1</sup> |
+| `labels.crt` | /labels/ssl/labels.crt | Certificate of client for TLS<sup>1</sup> |
+| `labels.key` | /labels/ssl/labels.key | Private key of client for TLS<sup>1</sup> |
 
 ## Environment
 | Parameter | Value | Default |
@@ -92,8 +92,8 @@ docker run --name traefik-rfc2136-demo \
 | `LABELS_WEBHOOK` | URL to call on each event or poll for each container |  |
 | `LABELS_WEBHOOK_AUTH_BASIC` | Basic authentication to use in the form of "username:password" for the webhook |  |
 | `LABELS_RFC2136_ONLY_UPDATE_ON_CHANGE` | Only update DNS entries if they are new or changed (will use dig on each call to the set server) |  |
-| `LABELS_DOCKER_IP` | Used for TLS<sup>1</sup> authentication against dockerd |  |
-| `LABELS_DOCKER_PORT` | Used for TLS<sup>1</sup> authentication against dockerd |  |
+| `LABELS_DOCKER_IP` | Used for TLS<sup>1</sup> authentication against dockerd | localhost |
+| `LABELS_DOCKER_PORT` | Used for TLS<sup>1</sup> authentication against dockerd | 2376 |
 
 ## Parent image
 * [11notes/node:stable](https://hub.docker.com/r/11notes/node)

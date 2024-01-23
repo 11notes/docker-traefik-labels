@@ -33,11 +33,11 @@ class Labels{
         elevenLogJSON('info', 'connect to Docker API via TLS verify');
         this.#docker = new Docker({
           protocol:'https',
-          host:process.env?.LABELS_DOCKER_IP,
+          host:process.env?.LABELS_DOCKER_IP || 'localhost',
           port: process.env.LABELS_DOCKER_PORT || 2376,
           ca:fs.readFileSync(`${process.env?.APP_ROOT}/ssl/ca.crt`),
-          cert:fs.readFileSync(`${process.env?.APP_ROOT}/ssl/client.crt`),
-          key:fs.readFileSync(`${process.env?.APP_ROOT}/ssl/client.key`)
+          cert:fs.readFileSync(`${process.env?.APP_ROOT}/ssl/labels.crt`),
+          key:fs.readFileSync(`${process.env?.APP_ROOT}/ssl/labels.key`)
         });
       break;
 
