@@ -1,123 +1,149 @@
-process.once('SIGTERM', () => process.exit(0));
-process.once('SIGINT', () => process.exit(0));
-
 const fs = require('fs');
+const util = require('util');
 const Docker = require('dockerode');
+const yaml = require('js-yaml');
 const redis = require('redis');
 const { nsupdate } = require('./nsupdate');
 const { dig } = require('./dig');
 const { elevenLogJSON } = require('/labels/lib/util.js');
 
-const ENV_REDIS_INTERVAL = parseInt(process.env?.LABELS_INTERVAL || 300);
-const ENV_REDIS_TIMEOUT = parseInt(process.env?.LABELS_TIMEOUT|| 30);
-const ENV_LABELS_WEBHOOK = process.env?.LABELS_WEBHOOK;
-const ENV_LABELS_WEBHOOK_AUTH_BASIC = process.env?.LABELS_WEBHOOK_AUTH_BASIC;
-const ENV_LABELS_RFC2136_ONLY_UPDATE_ON_CHANGE = process.env?.LABELS_RFC2136_ONLY_UPDATE_ON_CHANGE || false;
-
 class Labels{
-  #docker;
+  #config = yaml.load(fs.readFileSync(`${process.env.APP_ROOT}/etc/config.yaml`, 'utf8'))?.labels;
+  #defaults = {
+      tls:{
+        ca:`${process.env.APP_ROOT}/ssl/ca.crt`,
+        crt:`${process.env.APP_ROOT}/ssl/labels.crt`,
+        key:`${process.env.APP_ROOT}/ssl/labels.key`,
+        port:2376
+      },poll:{interval:300}, ping:{interval:2.5}, redis:{url:'rediss://localhost:6379/0'}, rfc2136:{'update-only':false}};
+  #intervals = {ping:false, poll:false};
+  #loops = {ping:false, poll:false};
   #redis;
-  #poll = false;
-  #webhook = {
-    headers:{'Content-Type':'application/json'}
-  };
+  #nodes = {};
 
   constructor(){
-    switch(true){
-      case fs.existsSync('/run/docker.sock'):
-        elevenLogJSON('info', 'connect to Docker socket');
-        this.#docker = new Docker({socketPath:'/run/docker.sock'});
-      break;
-
-      case fs.existsSync(`${process.env?.APP_ROOT}/ssl/ca.crt`):
-        elevenLogJSON('info', 'connect to Docker API via TLS verify');
-        this.#docker = new Docker({
-          protocol:'https',
-          host:process.env?.LABELS_DOCKER_IP || 'localhost',
-          port: process.env.LABELS_DOCKER_PORT || 2376,
-          ca:fs.readFileSync(`${process.env?.APP_ROOT}/ssl/ca.crt`),
-          cert:fs.readFileSync(`${process.env?.APP_ROOT}/ssl/labels.crt`),
-          key:fs.readFileSync(`${process.env?.APP_ROOT}/ssl/labels.key`)
-        });
-      break;
-
-      default:
-        elevenLogJSON('error', 'No docker API available, add /run/docker.sock (non-root) or use TLS verify authentication!');
+    for(const node of this.#config?.nodes){
+      this.#nodes[node] = new Docker({
+        protocol:'https',
+        host:node,
+        port:this.#config?.tls?.port || this.#defaults.tls.port,
+        ca:fs.readFileSync(this.#config?.tls?.ca || this.#defaults.tls.ca),
+        cert:fs.readFileSync(this.#config?.tls?.crt || this.#defaults.tls.crt),
+        key:fs.readFileSync(this.#config?.tls?.key || this.#defaults.tls.key),
+      });
+      this.#nodes[node].__labels = {ping:false};
     }
-    if(ENV_LABELS_WEBHOOK_AUTH_BASIC){
-      this.#webhook.headers['Authorization'] = 'Basic ' + Buffer.from(ENV_LABELS_WEBHOOK_AUTH_BASIC).toString('base64')
+
+    if(this.#config?.webhook?.url){
+      this.#config.webhook.headers = {'Content-Type':'application/json'};
+      switch(true){
+        case this.#config?.webhook?.auth?.basic:
+          this.#config.webhook.headers['Authorization'] = 'Basic ' + Buffer.from(this.#config.webhook.auth.basic).toString('base64');
+          break;
+      }      
     }
   }
 
-  async watch(){
+  async watch(){  
     this.#redis = await redis.createClient({
-      url:process.env.LABELS_REDIS_URL,
+      url:this.#config?.redis?.url || this.#defaults.redis.url,
       pingInterval:30000,
       socket:{
         rejectUnauthorized: false,
       }
     });
 
-    this.#redis.connect();
-    this.#redis.on('ready', ()=>{
-      (async() => {
-        await this.dockerPoll();
-      })();
-      this.dockerEvents();
+    this.#redis.on('ready', async()=>{
+      await this.#ping();
+      await this.#poll();
     });
 
     this.#redis.on('error', error =>{
-      elevenLogJSON('error', error);
+      elevenLogJSON('error', JSON.stringify({redis:{exception:e}}));
     });
 
-    setInterval(async() => {
-      await this.dockerPoll();
-    }, ENV_REDIS_INTERVAL*1000);
+    this.#redis.connect();
   }
 
-  dockerEvents(){
-    this.#docker.getEvents({}, (error, data) => {
-      if(error){
-        elevenLogJSON('error', error);
-      }else{
-        data.on('data', async(chunk) => {
-          const event = JSON.parse(chunk.toString('utf8'));
-          if(/Container/i.test(event?.Type) && /^(start|kill)$/i.test(event?.status)){
-            await this.dockerInspect(event.id, event.status);
+  async #ping(){
+    if(!this.#intervals.ping){
+      this.#intervals.ping = true;
+      setInterval(async() => {
+        if(!this.#loops.ping){
+          this.#loops.ping = true;
+          try{
+            await this.#ping()
+          }catch(e){
+            elevenLogJSON('error', JSON.stringify({ping:{exception:e}}));
+          }finally{
+            this.#loops.ping = false;
           }
-        });
-      }
-    });
-  }
+        }
+      }, (this.#config?.ping?.interval || this.#defaults.ping.interval)*1000);
+    }
 
-  async dockerPoll(){
-    if(!this.#poll){
+    for(const node in this.#nodes){
       try{
-        this.#poll = true;
-        this.#docker.listContainers((error, containers) => {
-          if(!error){
-            containers.forEach(async(container) => {
-              await this.dockerInspect(container.Id, 'poll');
+        await this.#nodes[node].ping();
+        if(!this.#nodes[node].__labels.ping){
+          elevenLogJSON('info', `connected to node {${node}}`);
+          this.#nodes[node].getEvents({}, (error, data) => {
+            data.on('data', async(chunk) =>{
+              const event = JSON.parse(chunk.toString('utf8'));
+              if(/Container/i.test(event?.Type) && /^(start|die)$/i.test(event?.status)){
+                await this.#inspect(node, event.id, event.status);
+              }
             });
-          }
-        });
+          });
+        }
+        this.#nodes[node].__labels.ping = true;
       }catch(e){
-        elevenLogJSON('error', e);
-      }finally{
-        this.#poll = false;
+        this.#nodes[node].__labels.ping = false;
       }
     }
   }
 
-  async dockerInspect(id, status = null){
+  async #poll(){
+    if(!this.#intervals.poll){
+      this.#intervals.poll = true;
+      setInterval(async() => {
+        if(!this.#loops.poll){
+          this.#loops.poll = true;
+          try{
+            await this.#poll()
+          }catch(e){
+            elevenLogJSON('error', JSON.stringify({poll:{exception:e}}));
+          }finally{
+            this.#loops.poll = false;
+          }
+        }
+      }, (this.#config?.poll?.interval || this.#defaults.poll.interval)*1000);
+    }
+
+    for(const node in this.#nodes){
+      try{
+        await this.#nodes[node].listContainers((error, containers) => {
+          if(!error){
+            containers.forEach(async(container) => {
+              await this.#inspect(node, container.Id, 'poll');
+            });
+          }
+        });
+      }catch(e){
+        
+      }
+    }
+  }
+
+  async #inspect(node, id, event){
     return(new Promise((resolve, reject) => {
-      const container = this.#docker.getContainer(id);
+      const container = this.#nodes[node].getContainer(id);
       container.inspect(async(error, data) => {
         if(!error){
-          const update = (/start|poll/i.test(status)) ? true : false;
           const container = {
             name:(data?.Name || data?.id).replace(/^\//i, ''),
-            event:status,
+            event:event,
+            run:(/start|poll/i.test(event)) ? true : false,
             labels:{
               traefik:[],
               rfc2136:[],
@@ -128,14 +154,12 @@ class Labels{
             WAN:{server:'', key:'', commands:[]},
             LAN:{server:'', key:'', commands:[]},
           }
-
-          elevenLogJSON('info', {container:container.name, event:status, method:'inspect'});
-      
+          
           for(const label in data?.Config?.Labels){
             switch(true){
               case /traefik\//i.test(label):
-                if(update){
-                  await this.#redis.set(label, data.Config.Labels[label], {EX:ENV_REDIS_INTERVAL + ENV_REDIS_TIMEOUT});
+                if(container.run){
+                  await this.#redis.set(label, data.Config.Labels[label], {EX:(this.#config?.poll?.interval || this.#defaults.poll.interval) + 30});
                 }else{
                   await this.#redis.del(label);
                 }
@@ -155,7 +179,7 @@ class Labels{
                   break;
 
                   default:
-                    if(!update){
+                    if(!container.run){
                       data.Config.Labels[label] = data.Config.Labels[label].replace(/update add/i, 'update delete');
                     }
                     rfc2136[type].commands.push(data.Config.Labels[label]);
@@ -164,61 +188,60 @@ class Labels{
             }
           }
 
-          for(const type in rfc2136){
-            if(rfc2136[type].commands.length > 0 && rfc2136[type].server && rfc2136[type].key){
-              if(ENV_LABELS_RFC2136_ONLY_UPDATE_ON_CHANGE){
-                for(let i=0; i<rfc2136[type].commands.length; i++){
-                  if(await this.rfc2136KnownRecord(rfc2136[type].server, rfc2136[type].commands[i])){
-                    rfc2136[type].commands.splice(i, 1);
-                  }
-                }
-              }
-              try{
-                if(rfc2136[type].commands.length > 0){
-                  elevenLogJSON('info', {container:container.name, event:status, method:`nsupdate ${rfc2136[type].server}`});
-                  await nsupdate(rfc2136[type].server, rfc2136[type].key, rfc2136[type].commands);
-                }else{
-                  if(ENV_LABELS_RFC2136_ONLY_UPDATE_ON_CHANGE){
-                    elevenLogJSON('info', {container:container.name, event:status, method:`nsupdate ${rfc2136[type].server} skipped due to same record data`});
-                  }
-                }
-              }catch(e){
-                elevenLogJSON('error', e);
-              }
-            }
+          if(rfc2136.LAN.commands.length > 0 || rfc2136.WAN.commands.length){
+            await this.#rfc2136(rfc2136);
           }
 
-          if(ENV_LABELS_WEBHOOK){           
-            try{
-              await fetch(ENV_LABELS_WEBHOOK, {method:(
-                (update) ? 'PUT' : 'DELETE'
-              ), body:JSON.stringify(container), headers:this.#webhook.headers, signal:AbortSignal.timeout(2500)});
-            }catch(e){
-              elevenLogJSON('error', {method:'fetch(webhook)', error:e});
-            }
+          if(this.#config?.webhook?.url){
+            await this.#webhook(container);
           }
-
-          resolve(true);
         }
-      });
+      })
+      resolve(true);
     }));
   }
 
-  async rfc2136KnownRecord(server, nsupdate){
+  async #rfc2136(rfc2136){
+    for(const type in rfc2136){
+      if(rfc2136[type].commands.length > 0 && rfc2136[type].server && rfc2136[type].key){
+        if(this.#config?.rfc2136?.['update-only'] || this.#defaults?.rfc2136?.['update-only']){
+          for(let i=0; i<rfc2136[type].commands.length; i++){
+            if(await this.#rfc2136knownRecord(rfc2136[type].server, rfc2136[type].commands[i])){
+              rfc2136[type].commands.splice(i, 1);
+            }
+          }
+        }
+        try{
+          if(rfc2136[type].commands.length > 0){
+            await nsupdate(rfc2136[type].server, rfc2136[type].key, rfc2136[type].commands);
+          }
+        }catch(e){
+          console.error(e);
+        }
+      }
+    }
+  }
+
+  async #rfc2136knownRecord(server, nsupdate){
     const matches = nsupdate.match(/update add (\S+) \d+ (\S+) (\S+)/i);
     if(matches && matches.length >= 4){
       try{
         const record = await dig(server, matches[2], matches[1]);
-        const match = (
-          (record.match(new RegExp(matches[3], 'ig'))) ? true : false
-        );
-        elevenLogJSON('debug', {method:'rfc2136KnownRecord()', params:{server:server, nsupdate:nsupdate}, match:{A:record, B:matches[3], match:match}});
-        return(match);
+        return((record.match(new RegExp(matches[3], 'ig'))));
       }catch(e){
-        elevenLogJSON('error', e);
         return(false);
       }
     }    
+  }
+
+  async #webhook(container){
+    try{
+      await fetch(this.#config.webhook.url, {method:(
+        (container.run) ? 'PUT' : 'DELETE'
+      ), body:JSON.stringify(container), headers:this.#config.webhook.headers, signal:AbortSignal.timeout(2500)});
+    }catch(e){
+      elevenLogJSON('error', JSON.stringify({webhook:{exception:e}}));
+    }
   }
 }
 

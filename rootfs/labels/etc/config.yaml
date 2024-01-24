@@ -1,0 +1,20 @@
+labels:
+  redis:
+    url: rediss://foo:bar@10.127.198.254:6379/0
+  webhook:
+    url: https://my.cool.webhook/v1
+    auth:
+      basic: labels:*****
+  nodes:
+    - 192.168.18.12
+    - 10.14.120.1
+  rfc2136:
+    update-only: true
+  poll:
+    interval: 300
+  ping:
+    interval: 2.5
+  tls:
+    ca: /labels/ssl/ca.crt
+    crt: /labels/ssl/server.crt
+    key: /labels/ssl/server.key
