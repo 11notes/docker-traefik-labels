@@ -33,6 +33,7 @@
       cd ${APP_ROOT}; \
       npm --save install \
         redis@4.6.11 \
+        js-yaml@4.1.0 \
         dockerode@4.0.0;
 
   # :: update image
