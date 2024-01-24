@@ -31,7 +31,7 @@ class Labels{
         cert:fs.readFileSync(this.#config?.tls?.crt || this.#defaults.tls.crt),
         key:fs.readFileSync(this.#config?.tls?.key || this.#defaults.tls.key),
       });
-      this.#nodes[node].__labels = {ping:false};
+      this.#nodes[node].labels = {ping:false, firstConnect:true};
     }
 
     if(this.#config?.webhook?.url){
@@ -54,6 +54,7 @@ class Labels{
     });
 
     this.#redis.on('ready', async()=>{
+      elevenLogJSON('info', `connected to redis`);
       await this.#ping();
       await this.#poll();
     });
@@ -85,20 +86,30 @@ class Labels{
     for(const node in this.#nodes){
       try{
         await this.#nodes[node].ping();
-        if(!this.#nodes[node].__labels.ping){
-          elevenLogJSON('info', `connected to node {${node}}`);
+        if(!this.#nodes[node].labels.ping){
+          elevenLogJSON('info', `connected to node [${node}]`);
           this.#nodes[node].getEvents({}, (error, data) => {
-            data.on('data', async(chunk) =>{
-              const event = JSON.parse(chunk.toString('utf8'));
-              if(/Container/i.test(event?.Type) && /^(start|die)$/i.test(event?.status)){
-                await this.#inspect(node, event.id, event.status);
-              }
-            });
+            if(!error){
+              data.on('data', async(chunk) =>{
+                const event = JSON.parse(chunk.toString('utf8'));
+                if(/Container/i.test(event?.Type) && /^(start|die)$/i.test(event?.status)){
+                  await this.#inspect(node, event.id, event.status);
+                }
+              });
+            }else{
+              elevenLogJSON('error', JSON.stringify({getEvents:{exception:e}}));
+            }
           });
         }
-        this.#nodes[node].__labels.ping = true;
+        this.#nodes[node].labels.ping = true;
       }catch(e){
-        this.#nodes[node].__labels.ping = false;
+        if(this.#nodes[node].labels.ping){
+          elevenLogJSON('warning', `connection to node [${node}] lost!`);
+        }else if(this.#nodes[node].labels.firstConnect){
+          this.#nodes[node].labels.firstConnect = false;
+          elevenLogJSON('warning', `connection to node [${node}] failed!`);
+        }
+        this.#nodes[node].labels.ping = false;
       }
     }
   }
@@ -130,7 +141,7 @@ class Labels{
           }
         });
       }catch(e){
-        
+        elevenLogJSON('error', JSON.stringify({listContainers:{exception:e}}));
       }
     }
   }
@@ -216,7 +227,7 @@ class Labels{
             await nsupdate(rfc2136[type].server, rfc2136[type].key, rfc2136[type].commands);
           }
         }catch(e){
-          console.error(e);
+          elevenLogJSON('error', JSON.stringify({nsupdate:{exception:e}}));
         }
       }
     }
