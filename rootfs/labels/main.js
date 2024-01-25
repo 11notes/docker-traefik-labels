@@ -161,6 +161,8 @@ class Labels{
             },
           };
 
+          elevenLogJSON('info', `[${node}] container [${container.name}] event [${container.event}]`);
+
           const rfc2136 = {
             WAN:{server:'', key:'', commands:[]},
             LAN:{server:'', key:'', commands:[]},
