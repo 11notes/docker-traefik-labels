@@ -60,7 +60,7 @@ class Labels{
     });
 
     this.#redis.on('error', error =>{
-      elevenLogJSON('error', JSON.stringify({redis:{exception:e}}));
+      elevenLogJSON('error', JSON.stringify({redis:{exception:e.toString()}}));
     });
 
     this.#redis.connect();
@@ -75,7 +75,7 @@ class Labels{
           try{
             await this.#ping()
           }catch(e){
-            elevenLogJSON('error', JSON.stringify({ping:{exception:e}}));
+            elevenLogJSON('error', JSON.stringify({ping:{exception:e.toString()}}));
           }finally{
             this.#loops.ping = false;
           }
@@ -97,12 +97,13 @@ class Labels{
                 }
               });
             }else{
-              elevenLogJSON('error', JSON.stringify({getEvents:{exception:e}}));
+              elevenLogJSON('error', JSON.stringify({getEvents:{exception:error.toString()}}));
             }
           });
         }
         this.#nodes[node].labels.ping = true;
       }catch(e){
+        elevenLogJSON('error', JSON.stringify({ping:{exception:e.toString()}}));
         if(this.#nodes[node].labels.ping){
           elevenLogJSON('warning', `connection to node [${node}] lost!`);
         }else if(this.#nodes[node].labels.firstConnect){
@@ -123,7 +124,7 @@ class Labels{
           try{
             await this.#poll()
           }catch(e){
-            elevenLogJSON('error', JSON.stringify({poll:{exception:e}}));
+            elevenLogJSON('error', JSON.stringify({poll:{exception:e.toString()}}));
           }finally{
             this.#loops.poll = false;
           }
@@ -141,7 +142,7 @@ class Labels{
           }
         });
       }catch(e){
-        elevenLogJSON('error', JSON.stringify({listContainers:{exception:e}}));
+        elevenLogJSON('error', JSON.stringify({listContainers:{exception:e.toString()}}));
       }
     }
   }
@@ -229,7 +230,7 @@ class Labels{
             await nsupdate(rfc2136[type].server, rfc2136[type].key, rfc2136[type].commands);
           }
         }catch(e){
-          elevenLogJSON('error', JSON.stringify({nsupdate:{exception:e}}));
+          elevenLogJSON('error', JSON.stringify({nsupdate:{exception:e.toString()}}));
         }
       }
     }
@@ -253,7 +254,7 @@ class Labels{
         (container.run) ? 'PUT' : 'DELETE'
       ), body:JSON.stringify(container), headers:this.#config.webhook.headers, signal:AbortSignal.timeout(2500)});
     }catch(e){
-      elevenLogJSON('error', JSON.stringify({webhook:{exception:e}}));
+      elevenLogJSON('error', JSON.stringify({webhook:{exception:e.toString()}}));
     }
   }
 }
