@@ -12,7 +12,9 @@ labels:
     - 192.168.18.12
     - 10.14.120.1
   # reload labels.nodes every {n} seconds (0 = disabled)
-  interval: 60
+  interval: 0
+  # timeout in seconds for the connection to a Docker node
+  timeout: 2.5
   rfc2136:
     # only nsupdate on entries which are different (remove existing entry)
     update-only: true

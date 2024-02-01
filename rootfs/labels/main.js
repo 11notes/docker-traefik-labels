@@ -18,6 +18,7 @@ class Labels{
   #config = yaml.load(fs.readFileSync(`${process.env.APP_ROOT}/etc/config.yaml`, 'utf8'))?.labels;
   #defaults = {
       interval:0,
+      timeout:2.5,
       tls:{
         ca:`${process.env.APP_ROOT}/ssl/ca.crt`,
         crt:`${process.env.APP_ROOT}/ssl/labels.crt`,
@@ -75,6 +76,7 @@ class Labels{
           ca:this.#tls.ca,
           cert:this.#tls.crt,
           key:this.#tls.key,
+          timeout:(this.#config?.timeout || this.#defaults.timeout)*1000
         });
         this.#nodes[node].labels = {ping:false, firstConnect:init};
       }
