@@ -14,8 +14,8 @@ This image provides the ability to call a webhook for each container for each ev
 * **/labels/etc** - Directory of config.yaml
 * **/labels/ssl** - Directory of ssl certificates for TLS<sup>1</sup>
 
-# CONFIG (EXAMPLE)
-/labels/etc/config.yaml
+# EXAMPLES
+## config /labels/etc/config.yaml
 ```yaml
 labels:
   redis:
@@ -31,7 +31,7 @@ labels:
     - 192.168.18.12
     - 10.14.120.1
   # reload labels.nodes every {n} seconds (0 = disabled)
-  interval: 0
+  interval: 60
   rfc2136:
     # only nsupdate on entries which are different (remove existing entry)
     update-only: true

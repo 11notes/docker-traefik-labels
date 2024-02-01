@@ -54,6 +54,8 @@ class Labels{
         if(!this.#loops.nodes){
           this.#loops.nodes = true;
           try{
+            elevenLogJSON('info', `reload nodes from config.yaml`);
+            this.#config = yaml.load(fs.readFileSync(`${process.env.APP_ROOT}/etc/config.yaml`, 'utf8'))?.labels;
             await this.#loadNodes(false);
           }catch(e){
             elevenLogJSON('error', JSON.stringify({nodes:{exception:e.toString()}}));
@@ -75,6 +77,20 @@ class Labels{
           key:this.#tls.key,
         });
         this.#nodes[node].labels = {ping:false, firstConnect:init};
+      }
+    }
+
+    for(const pnode in this.#nodes){
+      let valid = false;
+      for(const node of this.#config?.nodes){
+        if(pnode === node){
+          valid = true;
+          break;
+        }
+      }
+      if(!valid){
+        elevenLogJSON('info', `removed node [${pnode}] from configuration`);
+        delete(this.#nodes[pnode]);
       }
     }
   }
