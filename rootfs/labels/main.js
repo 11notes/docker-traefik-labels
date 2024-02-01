@@ -6,6 +6,14 @@ const { nsupdate } = require('./nsupdate');
 const { dig } = require('./dig');
 const { elevenLogJSON } = require('/labels/lib/util.js');
 
+process
+  .on('unhandledRejection', (e, p) => {
+    elevenLogJSON('error', JSON.stringify({rejection:{exception:e.toString()}}));
+  })
+  .on('uncaughtException', e => {
+    elevenLogJSON('error', JSON.stringify({exception:{exception:e.toString()}}));
+  });
+
 class Labels{
   #config = yaml.load(fs.readFileSync(`${process.env.APP_ROOT}/etc/config.yaml`, 'utf8'))?.labels;
   #defaults = {
@@ -82,6 +90,7 @@ class Labels{
           }
         }
       }, (this.#config?.ping?.interval || this.#defaults.ping.interval)*1000);
+      await this.#ping();
     }
 
     for(const node in this.#nodes){
@@ -131,6 +140,7 @@ class Labels{
           }
         }
       }, (this.#config?.poll?.interval || this.#defaults.poll.interval)*1000);
+      await this.#poll();
     }
 
     for(const node in this.#nodes){
