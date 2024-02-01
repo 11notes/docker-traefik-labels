@@ -1,116 +1,92 @@
-# Alpine :: Traefik Labels
-![size](https://img.shields.io/docker/image-size/11notes/traefik-labels/amd64-0.1.10?color=0eb305) ![version](https://img.shields.io/docker/v/11notes/traefik-labels/amd64-0.1.10?color=eb7a09) ![pulls](https://img.shields.io/docker/pulls/11notes/traefik-labels?color=2b75d6) ![activity](https://img.shields.io/github/commit-activity/m/11notes/docker-traefik-labels?color=c91cb8) ![commit-last](https://img.shields.io/github/last-commit/11notes/docker-traefik-labels?color=c91cb8)
+![Banner](https://github.com/11notes/defaults/blob/main/static/img/banner.png?raw=true)
 
-Run Traefik Labels based on Alpine Linux. Small, lightweight, secure and fast 🏔️
+# 🏔️ Alpine - Traefik Labels
+![size](https://img.shields.io/docker/image-size/11notes/traefik-labels/0.2.1?color=0eb305) ![version](https://img.shields.io/docker/v/11notes/traefik-labels/0.2.1?color=eb7a09) ![pulls](https://img.shields.io/docker/pulls/11notes/traefik-labels?color=2b75d6) ![activity](https://img.shields.io/github/commit-activity/m/11notes/docker-traefik-labels?color=c91cb8) ![commit-last](https://img.shields.io/github/last-commit/11notes/docker-traefik-labels?color=c91cb8) ![stars](https://img.shields.io/docker/stars/11notes/traefik-labels?color=e6a50e)
 
-## Description
-What can I do with this? Simply put: It will export any traefik labels on a container on the same host as this image runs to a Redis instance. This makes it possible for a centralized Traefik load balancer to update endpoints dynamically by utilizing the docker labels, just like you would on a local installation of Traefik with labels. It is meant as an alternative and simple way to proxy requests from a Traefik load balancer to multiple docker nodes running in different networks and locations. The image has the ability to use nsupdate with labels too, so that not only you can add a dynamic proxy to your Traefik, but add DNS entries to your internal or external NS servers. It uses split DNS as WAN and LAN in your labels, so you can update external as well as internal DNS entries on the fly. If a container is removed the image will automatically reverse any `nsupdate update add` to `nsupdate update delete` so entrie are removed too.
+# SYNOPSIS
+What can I do with this? This image will connect to all your Docker nodes and read their labels. It will then use the labels to update your Traefik configuration in Redis automatically and dynamically on each container start, stop or timeout. It also supports updating your internal and external DNS servers too, so you can use labels for everything. If a container is removed the image will automatically reverse any `nsupdate update add` to `nsupdate update delete` so entries are removed too.
 
-In order to use this image, you need to setup Traefik with a Redis provider and then point this image via REDIS_URL to the same Redis instance. Each entry will have an expire timer set in Redis, so that if a container is removed by a server crashing, Redis will automatically remove stale entries as well. Entries are refreshed every 300 seconds or on all docker container events (create, run, kill, stop, restart, ...). As for nsupdate, you need to setup tsig authentication in your NS servers and add the keys to the zones you want to be able to update, you can restrict the keys by using update-policy if you use BIND.
+In order to use this image, you need to setup Traefik with a Redis provider and then point this image via redis.url to the same Redis instance. Each entry will have an expire timer set in Redis, so that if a container is removed by a server crashing, Redis will automatically remove stale entries as well. Entries are refreshed every 300 seconds or on all docker container events (create, run, kill, stop, restart, ...). As for nsupdate, you need to setup tsig authentication in your NS servers and add the keys to the zones you want to be able to update, you can restrict the keys by using update-policy if you use BIND.
 
 This image provides the ability to call a webhook for each container for each event or poll after the data was updates in Redis and or nsupdate.
 
-## Volumes
+# VOLUMES
+* **/labels/etc** - Directory of config.yaml
 * **/labels/ssl** - Directory of ssl certificates for TLS<sup>1</sup>
 
-## Run
-```shell
-docker run --name traefik-labels \
-  -v /run/docker.sock:/run/docker.sock \
-  -e LABELS_REDIS_URL="rediss://foo:bar@10.127.198.254:6379/0" \
-  -d 11notes/traefik-labels:[tag]
+# CONFIG (EXAMPLE)
+/labels/etc/config.yaml
+```yaml
+labels:
+  redis:
+    url: rediss://foo:bar@10.127.198.254:6379/0
+  webhook:
+    url: https://my.cool.webhook/v1
+    # optional
+    auth:
+      # supports basic authentication
+      basic: labels:*****
+  nodes:
+    # use FQDN and add the FQDN to your certificates SAN list (or IP)
+    - 192.168.18.12
+    - 10.14.120.1
+  rfc2136:
+    # only nsupdate on entries which are different (remove existing entry)
+    update-only: true
+  poll:
+    # polling all containers on a node every {n} seconds
+    interval: 300
+  ping:
+    # ping all nodes every {n} seconds to see if they are still online
+    interval: 2.5
+  tls:
+    # path for TLS certificates
+    ca: /labels/ssl/ca.crt
+    crt: /labels/ssl/server.crt
+    key: /labels/ssl/server.key
 ```
 
+# RUN
 ```shell
 docker run --name traefik-labels \
-  -v /run/docker.sock:/run/docker.sock \
-  -e LABELS_REDIS_URL="rediss://foo:bar@10.127.198.254:6379/0" \
-  -e LABELS_WEBHOOK="https://domain.com/traefik/labels" \
-  -e LABELS_WEBHOOK_AUTH_BASIC="foo:bar" \
-  -d 11notes/traefik-labels:[tag]
-```
-
-```shell
-docker run --name traefik-labels \
+  -v .../etc:/labels/etc \
   -v .../ssl:/labels/ssl \
-  -e LABELS_REDIS_URL="rediss://foo:bar@10.127.198.254:6379/0" \
-  -e LABELS_WEBHOOK="https://domain.com/traefik/labels" \
-  -e LABELS_WEBHOOK_AUTH_BASIC="foo:bar" \
   -d 11notes/traefik-labels:[tag]
 ```
 
-## Examples
-```shell
-docker run --name traefik-demo \
-  -p 8080:8080 \
-  -l "traefik/http/routers/demo.domain.com/service=demo.domain.com" \
-  -l "traefik/http/routers/demo.domain.com/rule=Host(`demo.domain.com`)" \
-  -l "traefik/http/routers/demo.domain.com/tls=true" \
-  -l "traefik/http/routers/demo.domain.com/entrypoints=https" \
-  -l "traefik/http/services/demo.domain.com/loadbalancer/servers/0/url=http://fqdn-of-docker-node:8080" \
-  -d 11notes/nginx:stable
-```
-
-```shell
-docker run --name traefik-rfc2136-demo \
-  -p 8080:8080 \
-  -l "traefik/http/routers/demo.domain.com/service=demo.domain.com" \
-  -l "traefik/http/routers/demo.domain.com/rule=Host(`demo.domain.com`)" \
-  -l "traefik/http/routers/demo.domain.com/tls=true" \
-  -l "traefik/http/routers/demo.domain.com/entrypoints=https" \
-  -l "traefik/http/services/demo.domain.com/loadbalancer/servers/0/url=http://fqdn-of-docker-node:8080" \
-  -l "rfc2136/WAN/server=ns.domain.com" \
-  -l "rfc2136/WAN/key=algo:name:secret" \
-  -l "rfc2136/WAN/nsupdate=update add foo.domain.com 300 A 175.12.41.11" \
-  -l "rfc2136/WAN/nsupdate=update add foo.domain.com 300 TXT \"hello from traefik-labels!\"" \
-  -l "rfc2136/LAN/server=ns.domain.local" \
-  -l "rfc2136/LAN/key=algo:name:secret" \
-  -l "rfc2136/LAN/nsupdate=update add foo.domain.local 300 A 192.168.12.54" \
-  -d 11notes/nginx:stable
-```
-
-## Defaults
+# DEFAULT SETTINGS
 | Parameter | Value | Description |
 | --- | --- | --- |
 | `user` | docker | user docker |
 | `uid` | 1000 | user id 1000 |
 | `gid` | 1000 | group id 1000 |
 | `home` | /labels | home directory of user docker |
-| `api` | https://${IP}:5000 | HTTPS endpoint of Docker registry |
+| `config` | /labels/etc/config.yaml | Static config |
 | `ca.crt` | /labels/ssl/ca.crt | Certificate of CA for TLS<sup>1</sup> |
 | `labels.crt` | /labels/ssl/labels.crt | Certificate of client for TLS<sup>1</sup> |
 | `labels.key` | /labels/ssl/labels.key | Private key of client for TLS<sup>1</sup> |
 
-## Environment
+# ENVIRONMENT
 | Parameter | Value | Default |
 | --- | --- | --- |
 | `TZ` | [Time Zone](https://en.wikipedia.org/wiki/List_of_tz_database_time_zones) | |
 | `DEBUG` | Show debug information | |
-| `LABELS_REDIS_URL` | the redis URL to connect, use rediss:// for SSL | rediss://localhost:6379/0 |
-| `LABELS_INTERVAL` | in what interval container information is pulled in seconds | 300 |
-| `LABELS_TIMEOUT` | how many seconds after an interval the keys should stay till they expire in seconds | 30 |
-| `LABELS_WEBHOOK` | URL to call on each event or poll for each container |  |
-| `LABELS_WEBHOOK_AUTH_BASIC` | Basic authentication to use in the form of "username:password" for the webhook |  |
-| `LABELS_RFC2136_ONLY_UPDATE_ON_CHANGE` | Only update DNS entries if they are new or changed (will use dig on each call to the set server) |  |
-| `LABELS_DOCKER_IP` | Used for TLS<sup>1</sup> authentication against dockerd | localhost |
-| `LABELS_DOCKER_PORT` | Used for TLS<sup>1</sup> authentication against dockerd | 2376 |
 
-## Parent image
+# PARENT IMAGE
 * [11notes/node:stable](https://hub.docker.com/r/11notes/node)
 
-## Built with (thanks to)
+# BUILT WITH
 * [npm::redis](https://www.npmjs.com/package/redis)
 * [npm::dockerode](https://www.npmjs.com/package/dockerode)
 * [nodejs](https://nodejs.org/en)
-* [Alpine Linux](https://alpinelinux.org)
+* [alpine](https://alpinelinux.org)
 
-## Tips
+# TIPS
 * Only use rootless container runtime (podman, rootless docker)
-* Don't bind to ports < 1024 (requires root), use NAT/reverse proxy (haproxy, traefik, nginx)
-* Do not access docker.sock as root
-* Use TLS if you can't access docker.sock as non-root
+* Allow non-root ports < 1024 via `echo "net.ipv4.ip_unprivileged_port_start=53" > /etc/sysctl.d/ports.conf`
+* Use a reverse proxy like Traefik, Nginx to terminate TLS with a valid certificate
 
-## Disclaimers
+# DISCLAIMERS
 * <sup>1</sup> For TLS to work you need proper certificates in place for your dockerd and your clients. The CN in the certificate needs to match the FQDN or IP you have set on the docker node, you can set multiple by using SAN. See an example of a daemon.json configuration to enable TLS.
 ```json
 {
@@ -122,3 +98,7 @@ docker run --name traefik-rfc2136-demo \
   "hosts": ["unix:///var/run/docker.sock", "tcp://0.0.0.0:2376"]
 }
 ```
+
+# ElevenNotes<sup>™️</sup>
+This image is provided to you at your own risk. Always make backups before updating an image to a new version. Check the changelog for breaking changes.
+    

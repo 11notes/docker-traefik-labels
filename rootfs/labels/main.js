@@ -1,5 +1,4 @@
 const fs = require('fs');
-const util = require('util');
 const Docker = require('dockerode');
 const yaml = require('js-yaml');
 const redis = require('redis');
@@ -49,8 +48,10 @@ class Labels{
       url:this.#config?.redis?.url || this.#defaults.redis.url,
       pingInterval:30000,
       socket:{
-        rejectUnauthorized: false,
-      }
+        rejectUnauthorized:false,
+      },
+      disableOfflineQueue:false,
+      commandsQueueMaxLength:1024
     });
 
     this.#redis.on('ready', async()=>{
@@ -60,7 +61,7 @@ class Labels{
     });
 
     this.#redis.on('error', error =>{
-      elevenLogJSON('error', JSON.stringify({redis:{exception:e.toString()}}));
+      elevenLogJSON('error', JSON.stringify({redis:{exception:error.toString()}}));
     });
 
     this.#redis.connect();
@@ -104,7 +105,7 @@ class Labels{
         this.#nodes[node].labels.ping = true;
       }catch(e){
         elevenLogJSON('error', JSON.stringify({ping:{exception:e.toString()}}));
-        if(this.#nodes[node].labels.ping){
+        if(this.#nodes[node].labels.ping && !this.#nodes[node].labels.firstConnect){
           elevenLogJSON('warning', `connection to node [${node}] lost!`);
         }else if(this.#nodes[node].labels.firstConnect){
           this.#nodes[node].labels.firstConnect = false;

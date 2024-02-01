@@ -3,18 +3,25 @@ labels:
     url: rediss://foo:bar@10.127.198.254:6379/0
   webhook:
     url: https://my.cool.webhook/v1
+    # optional
     auth:
+      # supports basic authentication
       basic: labels:*****
   nodes:
+    # use FQDN and add the FQDN to your certificates SAN list (or IP)
     - 192.168.18.12
     - 10.14.120.1
   rfc2136:
+    # only nsupdate on entries which are different (remove existing entry)
     update-only: true
   poll:
+    # polling all containers on a node every {n} seconds
     interval: 300
   ping:
+    # ping all nodes every {n} seconds to see if they are still online
     interval: 2.5
   tls:
+    # path for TLS certificates
     ca: /labels/ssl/ca.crt
     crt: /labels/ssl/server.crt
     key: /labels/ssl/server.key
