@@ -17,29 +17,25 @@ process
 class Labels{
   #config = yaml.load(fs.readFileSync(`${process.env.APP_ROOT}/etc/config.yaml`, 'utf8'))?.labels;
   #defaults = {
+      interval:0,
       tls:{
         ca:`${process.env.APP_ROOT}/ssl/ca.crt`,
         crt:`${process.env.APP_ROOT}/ssl/labels.crt`,
         key:`${process.env.APP_ROOT}/ssl/labels.key`,
         port:2376
       },poll:{interval:300}, ping:{interval:2.5}, redis:{url:'rediss://localhost:6379/0'}, rfc2136:{'update-only':false}};
-  #intervals = {ping:false, poll:false};
-  #loops = {ping:false, poll:false};
+  #intervals = {ping:false, poll:false, nodes:false};
+  #loops = {ping:false, poll:false, nodes:false};
   #redis;
   #nodes = {};
+  #tls = {ca:'', crt:'', key:''};
 
   constructor(){
-    for(const node of this.#config?.nodes){
-      this.#nodes[node] = new Docker({
-        protocol:'https',
-        host:node,
-        port:this.#config?.tls?.port || this.#defaults.tls.port,
-        ca:fs.readFileSync(this.#config?.tls?.ca || this.#defaults.tls.ca),
-        cert:fs.readFileSync(this.#config?.tls?.crt || this.#defaults.tls.crt),
-        key:fs.readFileSync(this.#config?.tls?.key || this.#defaults.tls.key),
-      });
-      this.#nodes[node].labels = {ping:false, firstConnect:true};
-    }
+    this.#tls.ca = fs.readFileSync(this.#config?.tls?.ca || this.#defaults.tls.ca);
+    this.#tls.crt = fs.readFileSync(this.#config?.tls?.crt || this.#defaults.tls.crt);
+    this.#tls.key = fs.readFileSync(this.#config?.tls?.key || this.#defaults.tls.key);
+
+    this.#nodes(true);
 
     if(this.#config?.webhook?.url){
       this.#config.webhook.headers = {'Content-Type':'application/json'};
@@ -48,6 +44,38 @@ class Labels{
           this.#config.webhook.headers['Authorization'] = 'Basic ' + Buffer.from(this.#config.webhook.auth.basic).toString('base64');
           break;
       }      
+    }
+  }
+
+  async #nodes(init){
+    if(!this.#intervals.nodes && (this.#config?.interval || this.#defaults.interval) > 0){
+      this.#intervals.nodes = true;
+      setInterval(async() => {
+        if(!this.#loops.nodes){
+          this.#loops.nodes = true;
+          try{
+            await this.#nodes(false);
+          }catch(e){
+            elevenLogJSON('error', JSON.stringify({nodes:{exception:e.toString()}}));
+          }finally{
+            this.#loops.nodes = false;
+          }
+        }
+      }, (this.#config?.interval || this.#defaults.interval)*1000);
+    }
+
+    for(const node of this.#config?.nodes){
+      if(!this.#nodes[node]){
+        this.#nodes[node] = new Docker({
+          protocol:'https',
+          host:node,
+          port:this.#config?.tls?.port || this.#defaults.tls.port,
+          ca:this.#tls.ca,
+          cert:this.#tls.crt,
+          key:this.#tls.key,
+        });
+        this.#nodes[node].labels = {ping:false, firstConnect:init};
+      }
     }
   }
 
@@ -142,17 +170,19 @@ class Labels{
     }
 
     for(const node in this.#nodes){
-      try{
-        await this.#nodes[node].listContainers((error, containers) => {
-          elevenLogJSON('info', `poll started on node [${node}]`);
-          if(!error){
-            containers.forEach(async(container) => {
-              await this.#inspect(node, container.Id, 'poll');
-            });
-          }
-        });
-      }catch(e){
-        elevenLogJSON('error', JSON.stringify({listContainers:{exception:e.toString()}}));
+      if(this.#nodes[node].labels.ping){
+        try{
+          await this.#nodes[node].listContainers((error, containers) => {
+            elevenLogJSON('info', `poll started on node [${node}]`);
+            if(!error){
+              containers.forEach(async(container) => {
+                await this.#inspect(node, container.Id, 'poll');
+              });
+            }
+          });
+        }catch(e){
+          elevenLogJSON('error', JSON.stringify({listContainers:{exception:e.toString()}}));
+        }
       }
     }
   }

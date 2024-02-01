@@ -30,6 +30,8 @@ labels:
     # use FQDN and add the FQDN to your certificates SAN list (or IP)
     - 192.168.18.12
     - 10.14.120.1
+  # reload labels.nodes every {n} seconds (0 = disabled)
+  interval: 0
   rfc2136:
     # only nsupdate on entries which are different (remove existing entry)
     update-only: true
@@ -38,7 +40,7 @@ labels:
     interval: 300
   ping:
     # ping all nodes every {n} seconds to see if they are still online
-    interval: 2.5
+    interval: 10
   tls:
     # path for TLS certificates
     ca: /labels/ssl/ca.crt
