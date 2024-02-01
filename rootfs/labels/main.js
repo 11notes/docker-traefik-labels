@@ -35,7 +35,7 @@ class Labels{
     this.#tls.crt = fs.readFileSync(this.#config?.tls?.crt || this.#defaults.tls.crt);
     this.#tls.key = fs.readFileSync(this.#config?.tls?.key || this.#defaults.tls.key);
 
-    this.#nodes(true);
+    this.#loadNodes(true);
 
     if(this.#config?.webhook?.url){
       this.#config.webhook.headers = {'Content-Type':'application/json'};
@@ -47,14 +47,14 @@ class Labels{
     }
   }
 
-  async #nodes(init){
+  async #loadNodes(init){
     if(!this.#intervals.nodes && (this.#config?.interval || this.#defaults.interval) > 0){
       this.#intervals.nodes = true;
       setInterval(async() => {
         if(!this.#loops.nodes){
           this.#loops.nodes = true;
           try{
-            await this.#nodes(false);
+            await this.#loadNodes(false);
           }catch(e){
             elevenLogJSON('error', JSON.stringify({nodes:{exception:e.toString()}}));
           }finally{
