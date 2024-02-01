@@ -6,14 +6,12 @@
       git; \
     git clone https://github.com/11notes/util.git;
 
-# :: Builder
-  FROM alpine AS qemu
-  ENV QEMU_URL https://github.com/balena-io/qemu/releases/download/v3.0.0%2Bresin/qemu-3.0.0+resin-aarch64.tar.gz
-  RUN apk add curl && curl -L ${QEMU_URL} | tar zxvf - -C . && mv qemu-3.0.0+resin-aarch64/qemu-aarch64-static .
+# :: Arch
+  FROM multiarch/qemu-user-static:x86_64-aarch64 as qemu
 
 # :: Header
-  FROM arm64v8/node:20.10.0-alpine3.19
-  COPY --from=qemu qemu-aarch64-static /usr/bin
+  FROM 11notes/node:arm64v8-stable
+  COPY --from=qemu /usr/bin/qemu-aarch64-static /usr/bin
   ENV APP_ROOT=/labels
 
 # :: Run
