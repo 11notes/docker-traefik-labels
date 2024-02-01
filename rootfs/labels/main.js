@@ -65,6 +65,7 @@ class Labels{
     this.#redis.on('ready', async()=>{
       elevenLogJSON('info', `connected to redis`);
       await this.#ping();
+      elevenLogJSON('info', `start initial poll after container start`);
       await this.#poll();
     });
 
@@ -90,7 +91,6 @@ class Labels{
           }
         }
       }, (this.#config?.ping?.interval || this.#defaults.ping.interval)*1000);
-      await this.#ping();
     }
 
     for(const node in this.#nodes){
@@ -113,7 +113,6 @@ class Labels{
         }
         this.#nodes[node].labels.ping = true;
       }catch(e){
-        elevenLogJSON('error', JSON.stringify({ping:{exception:e.toString()}}));
         if(this.#nodes[node].labels.ping && !this.#nodes[node].labels.firstConnect){
           elevenLogJSON('warning', `connection to node [${node}] lost!`);
         }else if(this.#nodes[node].labels.firstConnect){
@@ -140,12 +139,12 @@ class Labels{
           }
         }
       }, (this.#config?.poll?.interval || this.#defaults.poll.interval)*1000);
-      await this.#poll();
     }
 
     for(const node in this.#nodes){
       try{
         await this.#nodes[node].listContainers((error, containers) => {
+          elevenLogJSON('info', `poll started on node [${node}]`);
           if(!error){
             containers.forEach(async(container) => {
               await this.#inspect(node, container.Id, 'poll');
