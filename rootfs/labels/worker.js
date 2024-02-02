@@ -118,7 +118,10 @@ class Worker{
             event:event,
             labels:{},
             start:(/start|poll/i.test(event)) ? true : false,
-            worker:this.#config.node,
+            worker:{
+              node:this.#config.node,
+              port:this.#config.port
+            },
           };
           for(const label in data?.Config?.Labels){
             if(/traefik\/|rfc2136\//i.test(label)){

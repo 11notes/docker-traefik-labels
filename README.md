@@ -1,7 +1,7 @@
 ![Banner](https://github.com/11notes/defaults/blob/main/static/img/banner.png?raw=true)
 
 # 🏔️ Alpine - Traefik Labels
-![size](https://img.shields.io/docker/image-size/11notes/traefik-labels/0.2.1?color=0eb305) ![version](https://img.shields.io/docker/v/11notes/traefik-labels/0.2.1?color=eb7a09) ![pulls](https://img.shields.io/docker/pulls/11notes/traefik-labels?color=2b75d6) ![activity](https://img.shields.io/github/commit-activity/m/11notes/docker-traefik-labels?color=c91cb8) ![commit-last](https://img.shields.io/github/last-commit/11notes/docker-traefik-labels?color=c91cb8) ![stars](https://img.shields.io/docker/stars/11notes/traefik-labels?color=e6a50e)
+![size](https://img.shields.io/docker/image-size/11notes/traefik-labels/0.3.0?color=0eb305) ![version](https://img.shields.io/docker/v/11notes/traefik-labels/0.3.0?color=eb7a09) ![pulls](https://img.shields.io/docker/pulls/11notes/traefik-labels?color=2b75d6) ![activity](https://img.shields.io/github/commit-activity/m/11notes/docker-traefik-labels?color=c91cb8) ![commit-last](https://img.shields.io/github/last-commit/11notes/docker-traefik-labels?color=c91cb8) ![stars](https://img.shields.io/docker/stars/11notes/traefik-labels?color=e6a50e)
 
 # SYNOPSIS
 What can I do with this? This image will connect to all your Docker nodes and read their labels. It will then use the labels to update your Traefik configuration in Redis automatically and dynamically on each container start, stop or timeout. It also supports updating your internal and external DNS servers too, so you can use labels for everything. If a container is removed the image will automatically reverse any `nsupdate update add` to `nsupdate update delete` so entries are removed too.
@@ -45,8 +45,8 @@ labels:
   # timeout in seconds for the connection to a Docker node
   timeout: 2.5
   rfc2136:
-    # only nsupdate on entries which are different (remove existing entry)
-    update-only: true
+    # only nsupdate on entries which are different (do not update same data)
+    verify: false
   poll:
     # polling all containers on a node every {n} seconds
     interval: 300
