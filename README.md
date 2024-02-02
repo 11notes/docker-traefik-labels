@@ -10,9 +10,19 @@ In order to use this image, you need to setup Traefik with a Redis provider and 
 
 This image provides the ability to call a webhook for each container for each event or poll after the data was updates in Redis and or nsupdate.
 
+Each node gets its own worker thread for better scalability. If you have 10 nodes, you will have 10 worker processes inside the container forked from the main process. Forks die when their node disconnects and use the `ping.interval` to fork new processes indefinitely. As soon as the node is back online, it will always execute a poll on all containers of that node.
+
 # VOLUMES
 * **/labels/etc** - Directory of config.yaml
 * **/labels/ssl** - Directory of ssl certificates for TLS<sup>1</sup>
+
+# RUN
+```shell
+docker run --name traefik-labels \
+  -v .../etc:/labels/etc \
+  -v .../ssl:/labels/ssl \
+  -d 11notes/traefik-labels:[tag]
+```
 
 # EXAMPLES
 ## config /labels/etc/config.yaml
@@ -50,12 +60,35 @@ labels:
     key: /labels/ssl/server.key
 ```
 
-# RUN
+## container on a node with Traefik routes
 ```shell
-docker run --name traefik-labels \
-  -v .../etc:/labels/etc \
-  -v .../ssl:/labels/ssl \
-  -d 11notes/traefik-labels:[tag]
+docker run --name traefik-demo \
+  -p 8080:8080 \
+  -l "traefik/http/routers/demo.domain.com/service=demo.domain.com" \
+  -l "traefik/http/routers/demo.domain.com/rule=Host(`demo.domain.com`)" \
+  -l "traefik/http/routers/demo.domain.com/tls=true" \
+  -l "traefik/http/routers/demo.domain.com/entrypoints=https" \
+  -l "traefik/http/services/demo.domain.com/loadbalancer/servers/0/url=http://fqdn-of-docker-node:8080" \
+  -d 11notes/nginx:stable
+```
+
+## container on a node with Traefik routes and rfc2136 DNS
+```shell
+docker run --name traefik-rfc2136-demo \
+  -p 8080:8080 \
+  -l "traefik/http/routers/demo.domain.com/service=demo.domain.com" \
+  -l "traefik/http/routers/demo.domain.com/rule=Host(`demo.domain.com`)" \
+  -l "traefik/http/routers/demo.domain.com/tls=true" \
+  -l "traefik/http/routers/demo.domain.com/entrypoints=https" \
+  -l "traefik/http/services/demo.domain.com/loadbalancer/servers/0/url=http://fqdn-of-docker-node:8080" \
+  -l "rfc2136/WAN/server=ns.domain.com" \
+  -l "rfc2136/WAN/key=algo:name:secret" \
+  -l "rfc2136/WAN/nsupdate=update add foo.domain.com 300 A 175.12.41.11" \
+  -l "rfc2136/WAN/nsupdate=update add foo.domain.com 300 TXT \"hello from traefik-labels!\"" \
+  -l "rfc2136/LAN/server=ns.domain.local" \
+  -l "rfc2136/LAN/key=algo:name:secret" \
+  -l "rfc2136/LAN/nsupdate=update add foo.domain.local 300 A 192.168.12.54" \
+  -d 11notes/nginx:stable
 ```
 
 # DEFAULT SETTINGS
@@ -65,7 +98,7 @@ docker run --name traefik-labels \
 | `uid` | 1000 | user id 1000 |
 | `gid` | 1000 | group id 1000 |
 | `home` | /labels | home directory of user docker |
-| `config` | /labels/etc/config.yaml | Static config |
+| `config` | /labels/etc/config.yaml | config (nodes can be updated dynamically) |
 | `ca.crt` | /labels/ssl/ca.crt | Certificate of CA for TLS<sup>1</sup> |
 | `labels.crt` | /labels/ssl/labels.crt | Certificate of client for TLS<sup>1</sup> |
 | `labels.key` | /labels/ssl/labels.key | Private key of client for TLS<sup>1</sup> |

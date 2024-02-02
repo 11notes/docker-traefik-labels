@@ -1,10 +1,10 @@
-image: 11notes/traefik-labels:0.2.1
+image: 11notes/traefik-labels:0.3.0
 manifests:
-  - image: 11notes/traefik-labels:amd64-0.2.1
+  - image: 11notes/traefik-labels:amd64-0.3.0
     platform:
       architecture: amd64
       os: linux
-  - image: 11notes/traefik-labels:arm64v8-0.2.1
+  - image: 11notes/traefik-labels:arm64v8-0.3.0
     platform:
       architecture: arm64
       os: linux
