@@ -16,8 +16,8 @@ labels:
   # timeout in seconds for the connection to a Docker node
   timeout: 2.5
   rfc2136:
-    # only nsupdate on entries which are different (remove existing entry)
-    update-only: true
+    # only nsupdate on entries which are different (do not update same data)
+    verify: false
   poll:
     # polling all containers on a node every {n} seconds
     interval: 300

@@ -89,6 +89,7 @@ docker run --name traefik-labels \
 * Only use rootless container runtime (podman, rootless docker)
 * Allow non-root ports < 1024 via `echo "net.ipv4.ip_unprivileged_port_start=53" > /etc/sysctl.d/ports.conf`
 * Use a reverse proxy like Traefik, Nginx to terminate TLS with a valid certificate
+* Use Let’s Encrypt certificates to protect your SSL endpoints
 
 # DISCLAIMERS
 * <sup>1</sup> For TLS to work you need proper certificates in place for your dockerd and your clients. The CN in the certificate needs to match the FQDN or IP you have set on the docker node, you can set multiple by using SAN. See an example of a daemon.json configuration to enable TLS.
