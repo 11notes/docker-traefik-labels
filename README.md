@@ -35,7 +35,7 @@ services:
       - redis
     restart: always
   labels:
-    image: "11notes/traefik-labels:0.3.0"
+    image: "11notes/traefik-labels:latest"
     container_name: "labels"
     environment:
       TZ: Europe/Zurich
