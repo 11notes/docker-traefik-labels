@@ -6,11 +6,11 @@
       git; \
     git clone https://github.com/11notes/util.git;
 
-# :: Arch
+# :: QEMU
   FROM multiarch/qemu-user-static:x86_64-aarch64 as qemu
 
 # :: Header
-  FROM 11notes/node:arm64v8-stable
+  FROM --platform=linux/arm64 11notes/node:stable
   COPY --from=qemu /usr/bin/qemu-aarch64-static /usr/bin
   ENV APP_ROOT=/labels
 

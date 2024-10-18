@@ -1,0 +1,33 @@
+name: "traefik-labels"
+services:
+  redis:
+    image: "11notes/redis:7.2.5"
+    container_name: "redis"
+    environment:
+      REDIS_PASSWORD: "**************"
+      TZ: Europe/Zurich
+    volumes:
+      - "redis.etc:/redis/etc"
+      - "redis.var:/redis/var"
+    networks:
+      - redis
+    restart: always
+  labels:
+    image: "11notes/traefik-labels:0.3.0"
+    container_name: "labels"
+    environment:
+      TZ: Europe/Zurich
+    volumes:
+      - "labels.etc:/labels/etc"
+    networks:
+      - redis
+      - nodes
+    restart: always
+volumes:
+  redis.etc:
+  redis.var:
+  labels:etc:
+networks:
+  redis:
+    internal: true
+  nodes:

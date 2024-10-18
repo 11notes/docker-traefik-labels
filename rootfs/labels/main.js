@@ -29,7 +29,7 @@ class Labels{
       this.#config.webhook.headers['Authorization'] = 'Basic ' + Buffer.from(config.webhook.auth.basic).toString('base64');
       elevenLogJSON('info', `using webhook ${this.#config.webhook.url} with basic authentication`);
     }
-    this.#config.rfc2136 = {verify:(config?.rfc2136?.verify || false)};
+    this.#config.rfc2136 = {verify:(config?.rfc2136?.verify || false), remove:(config?.rfc2136?.remove || false)};
     this.#config.poll = {interval:(config?.poll?.interval || 300)};
     this.#config.ping = {interval:(config?.ping?.interval || 2.5)};
     this.#config.port = (config?.port || 2376);
@@ -156,7 +156,7 @@ class Labels{
               break;
 
               default:
-                if(!container.start){
+                if(!container.start && this.#config.rfc2136.remove){
                   container.labels[label] = container.labels[label].replace(/update add/i, 'update delete');
                 }
                 rfc2136[type].commands.push(container.labels[label]);
@@ -172,8 +172,6 @@ class Labels{
       if(this.#config?.webhook?.url){
         await this.#webhook(container);
       }
-
-      elevenLogJSON('info', `[${container.worker.node}] container [${container.name}] event [${container.event}]; Traefik: add ${counter.add} / del ${counter.del}; rfc2136: WAN ${rfc2136.WAN.commands.length} / LAN ${rfc2136.LAN.commands.length}`);
 
     }catch(e){
       elevenLogJSON('error', {inspect:e.toString(), exception:e});

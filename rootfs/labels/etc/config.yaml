@@ -18,6 +18,8 @@ labels:
   rfc2136:
     # only nsupdate on entries which are different (do not update same data)
     verify: false
+    # remove DNS entry if container is unreachable
+    remove: false
   poll:
     # polling all containers on a node every {n} seconds
     interval: 300
