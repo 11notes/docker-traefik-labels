@@ -1,7 +1,7 @@
 ![Banner](https://github.com/11notes/defaults/blob/main/static/img/banner.png?raw=true)
 
 # 🏔️ Alpine - Traefik Labels
-![size](https://img.shields.io/docker/image-size/11notes/traefik-labels/0.3.0?color=0eb305) ![version](https://img.shields.io/docker/v/11notes/traefik-labels/0.3.0?color=eb7a09) ![pulls](https://img.shields.io/docker/pulls/11notes/traefik-labels?color=2b75d6)
+![size](https://img.shields.io/docker/image-size/11notes/traefik-labels/latest?color=0eb305) ![version](https://img.shields.io/docker/v/11notes/traefik-labels/latest?color=eb7a09) ![pulls](https://img.shields.io/docker/pulls/11notes/traefik-labels?color=2b75d6)
 
 **Export Traefik labels from any Docker node to a central location**
 
@@ -143,7 +143,7 @@ docker run --name traefik-rfc2136-demo \
 | `DEBUG` | Show debug information | |
 
 # SOURCE
-* [11notes/traefik-labels:0.3.0](https://github.com/11notes/docker-traefik-labels/tree/0.3.0)
+* [11notes/traefik-labels:latest](https://github.com/11notes/docker-traefik-labels/tree/latest)
 
 # PARENT IMAGE
 * [11notes/node:stable](https://hub.docker.com/r/11notes/node)
